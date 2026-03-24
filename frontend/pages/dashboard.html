@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — School Hostel Booking System</title>
+  <meta name="description" content="Student dashboard — overview of your hostel bookings and account." />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <!-- ====== NAVBAR ====== -->
+  <nav class="navbar" id="main-navbar">
+    <div class="navbar-brand">
+      <div class="brand-icon">🏠</div>
+      School Hostel
+    </div>
+    <ul class="navbar-nav">
+      <li><a href="dashboard.html" class="active" id="nav-dashboard">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html" id="nav-hostels">🏢 Hostels</a></li>
+      <li><a href="booking-history.html" id="nav-bookings">📋 My Bookings</a></li>
+    </ul>
+    <div class="navbar-right">
+      <div class="user-badge" id="user-badge">
+        <div class="avatar" id="user-avatar">S</div>
+        <span id="user-name-badge">Student</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- ====== PAGE ====== -->
+  <main class="page-wrapper">
+
+    <!-- Hero -->
+    <div class="dashboard-hero">
+      <h2>Welcome back, <span id="welcome-name">Student</span>! 👋</h2>
+      <p id="user-email" style="opacity:.8;font-size:.9rem;margin-top:.25rem"></p>
+      <p style="margin-top:.5rem;opacity:.75">Here's a snapshot of your hostel activity.</p>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div>
+          <div class="stat-value" id="stat-total-bookings">—</div>
+          <div class="stat-label">Total Bookings</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div>
+          <div class="stat-value" id="stat-active-booking">—</div>
+          <div class="stat-label">Confirmed</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div>
+          <div class="stat-value" id="stat-pending-bookings">—</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">🏢</div>
+        <div>
+          <div class="stat-value" id="stat-available-hostels">—</div>
+          <div class="stat-label">Available Hostels</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem">
+      <a href="hostel-list.html" class="btn btn-primary">🏢 Browse Hostels</a>
+      <a href="booking-history.html" class="btn btn-outline">📋 My Bookings</a>
+    </div>
+
+    <!-- Recent Bookings Table -->
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h3>Recent Bookings</h3>
+        <a href="booking-history.html" class="btn btn-outline btn-sm">View All</a>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Booking ID</th>
+            <th>Hostel</th>
+            <th>Semester</th>
+            <th>Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="recent-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:2rem">
+            <div class="spinner" style="margin:0 auto"></div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <div id="toast-container"></div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    // Shared navbar initialiser
+    function initNavbar() {
+      const user = getCurrentUser();
+      if (!user) return;
+      const initials = user.name ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'S';
+      document.getElementById('user-avatar').textContent      = initials;
+      document.getElementById('user-name-badge').textContent  = user.name || 'Student';
+    }
+  </script>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>

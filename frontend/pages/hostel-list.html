@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browse Hostels — School Hostel Booking System</title>
+  <meta name="description" content="Browse available hostels and book your room for the semester." />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <!-- ====== NAVBAR ====== -->
+  <nav class="navbar" id="main-navbar">
+    <div class="navbar-brand">
+      <div class="brand-icon">🏠</div>
+      School Hostel
+    </div>
+    <ul class="navbar-nav">
+      <li><a href="dashboard.html" id="nav-dashboard">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html" class="active" id="nav-hostels">🏢 Hostels</a></li>
+      <li><a href="booking-history.html" id="nav-bookings">📋 My Bookings</a></li>
+    </ul>
+    <div class="navbar-right">
+      <div class="user-badge">
+        <div class="avatar" id="user-avatar">S</div>
+        <span id="user-name-badge">Student</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- ====== PAGE ====== -->
+  <main class="page-wrapper">
+
+    <div class="page-header">
+      <h1>🏢 Available Hostels</h1>
+      <p>Browse and book accommodation for the upcoming semester.</p>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input class="form-control" type="search" id="search-input" placeholder="Search hostel name or location…" />
+      </div>
+      <select class="form-control filter-select" id="type-filter">
+        <option value="">All Types</option>
+        <option value="standard">Standard</option>
+        <option value="premium">Premium</option>
+        <option value="executive">Executive</option>
+      </select>
+      <select class="form-control filter-select" id="gender-filter">
+        <option value="">All Genders</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="mixed">Mixed</option>
+      </select>
+      <select class="form-control filter-select" id="sort-select">
+        <option value="">Sort By</option>
+        <option value="price-asc">Price: Low → High</option>
+        <option value="price-desc">Price: High → Low</option>
+        <option value="rooms">Most Available</option>
+      </select>
+      <span id="hostel-count" style="font-size:.875rem;color:var(--text-muted);white-space:nowrap"></span>
+    </div>
+
+    <!-- Hostel Grid -->
+    <div class="hostels-grid" id="hostels-grid">
+      <div class="loading-wrap" style="grid-column:1/-1">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ====== BOOKING MODAL ====== -->
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📋 Book a Room</h3>
+        <button class="modal-close" onclick="closeBookingModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:1.25rem;padding:1rem;background:var(--primary-light);border-radius:var(--radius-sm)">
+          <div style="font-weight:700;font-size:1.05rem" id="modal-hostel-name">Hostel Name</div>
+          <div style="color:var(--primary);font-weight:600;margin-top:.25rem" id="modal-hostel-price"></div>
+        </div>
+
+        <div class="alert alert-error" id="booking-alert"></div>
+
+        <form id="booking-form">
+          <input type="hidden" id="book-hostel-id" />
+
+          <div class="form-group">
+            <label class="form-label" for="book-room-type">Room Type</label>
+            <select class="form-control" id="book-room-type" required>
+              <option value="">Select room type</option>
+              <option value="single">Single Room</option>
+              <option value="double">Double Room (shared)</option>
+              <option value="triple">Triple Room (shared)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="book-semester">Semester</label>
+              <select class="form-control" id="book-semester" required>
+                <option value="">Select semester</option>
+                <option value="First Semester">First Semester</option>
+                <option value="Second Semester">Second Semester</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="book-year">Academic Year</label>
+              <select class="form-control" id="book-year" required>
+                <option value="2024/2025">2024 / 2025</option>
+                <option value="2025/2026" selected>2025 / 2026</option>
+                <option value="2026/2027">2026 / 2027</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeBookingModal()">Cancel</button>
+        <button class="btn btn-primary" type="submit" form="booking-form">Confirm Booking</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    function initNavbar() {
+      const user = getCurrentUser();
+      if (!user) return;
+      const initials = user.name ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'S';
+      document.getElementById('user-avatar').textContent     = initials;
+      document.getElementById('user-name-badge').textContent = user.name || 'Student';
+    }
+  </script>
+  <script src="../js/hostels.js"></script>
+</body>
+</html>
