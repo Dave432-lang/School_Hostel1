@@ -3,25 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard — School Hostel Booking System</title>
-  <meta name="description" content="Student dashboard — overview of your hostel bookings and account." />
+  <title>Dashboard — School Hostel Booking</title>
   <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* Weather widget */
+    .weather-card { display:flex; flex-direction:column; gap:.75rem; }
+    .weather-top  { display:flex; align-items:center; gap:1rem; }
+    .weather-icon { font-size:3rem; line-height:1; }
+    .weather-temp { font-size:2rem; font-weight:800; color:var(--primary); line-height:1; }
+    .weather-desc { font-size:.85rem; color:var(--text-muted); margin-top:.2rem; }
+    .weather-loc  { font-size:.75rem; color:var(--text-muted); margin-top:.2rem; }
+    .weather-details { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:var(--text-muted); border-top:1px solid var(--border); padding-top:.75rem; }
+    .weather-details span { display:flex; align-items:center; gap:.3rem; }
+  </style>
 </head>
 <body>
 
-  <!-- ====== NAVBAR ====== -->
-  <nav class="navbar" id="main-navbar">
-    <div class="navbar-brand">
-      <div class="brand-icon">🏠</div>
-      School Hostel
-    </div>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand"><div class="brand-icon">🏠</div>School Hostel</div>
     <ul class="navbar-nav">
-      <li><a href="dashboard.html" class="active" id="nav-dashboard">🏠 Dashboard</a></li>
-      <li><a href="hostel-list.html" id="nav-hostels">🏢 Hostels</a></li>
-      <li><a href="booking-history.html" id="nav-bookings">📋 My Bookings</a></li>
+      <li><a href="dashboard.html" class="active">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html">🗺️ Map</a></li>
+      <li><a href="booking-history.html">📋 My Bookings</a></li>
     </ul>
     <div class="navbar-right">
-      <div class="user-badge" id="user-badge">
+      <div class="user-badge">
         <div class="avatar" id="user-avatar">S</div>
         <span id="user-name-badge">Student</span>
       </div>
@@ -29,44 +37,44 @@
     </div>
   </nav>
 
-  <!-- ====== PAGE ====== -->
   <main class="page-wrapper">
 
-    <!-- Hero -->
+    <!-- Welcome -->
     <div class="dashboard-hero">
       <h2>Welcome back, <span id="welcome-name">Student</span>! 👋</h2>
-      <p id="user-email" style="opacity:.8;font-size:.9rem;margin-top:.25rem"></p>
-      <p style="margin-top:.5rem;opacity:.75">Here's a snapshot of your hostel activity.</p>
+      <p style="opacity:.85;margin-top:.35rem">Here is a snapshot of your hostel activity.</p>
     </div>
 
-    <!-- Stat Cards -->
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-icon blue">📋</div>
-        <div>
-          <div class="stat-value" id="stat-total-bookings">—</div>
-          <div class="stat-label">Total Bookings</div>
+    <!-- Stats + Weather (side by side on desktop) -->
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:1.5rem;margin-bottom:2rem;align-items:start">
+      <!-- Stat Cards -->
+      <div class="stat-grid" style="margin-bottom:0">
+        <div class="stat-card">
+          <div class="stat-icon blue">📋</div>
+          <div><div class="stat-value" id="stat-total-bookings">—</div><div class="stat-label">Total Bookings</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">🕐</div>
+          <div><div class="stat-value" id="stat-active-booking">—</div><div class="stat-label">Active</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div><div class="stat-value" id="stat-pending-bookings">—</div><div class="stat-label">Confirmed</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">❌</div>
+          <div><div class="stat-value" id="stat-cancelled">—</div><div class="stat-label">Cancelled</div></div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div>
-          <div class="stat-value" id="stat-active-booking">—</div>
-          <div class="stat-label">Confirmed</div>
+
+      <!-- Weather Widget -->
+      <div class="card" style="padding:1.25rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem">
+          <h3 style="margin:0;font-size:.9rem;font-weight:700;color:var(--text-main)">🌤️ Current Weather</h3>
+          <button onclick="initWeather('weather-container')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--primary)">↻ Refresh</button>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon amber">⏳</div>
-        <div>
-          <div class="stat-value" id="stat-pending-bookings">—</div>
-          <div class="stat-label">Pending</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">🏢</div>
-        <div>
-          <div class="stat-value" id="stat-available-hostels">—</div>
-          <div class="stat-label">Available Hostels</div>
+        <div id="weather-container">
+          <div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.82rem">Loading weather…</div>
         </div>
       </div>
     </div>
@@ -74,10 +82,11 @@
     <!-- Quick Actions -->
     <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem">
       <a href="hostel-list.html" class="btn btn-primary">🏢 Browse Hostels</a>
+      <a href="hostel-map.html"  class="btn btn-outline">🗺️ View on Map</a>
       <a href="booking-history.html" class="btn btn-outline">📋 My Bookings</a>
     </div>
 
-    <!-- Recent Bookings Table -->
+    <!-- Recent Bookings -->
     <div class="table-wrapper">
       <div class="table-header">
         <h3>Recent Bookings</h3>
@@ -85,13 +94,7 @@
       </div>
       <table>
         <thead>
-          <tr>
-            <th>Booking ID</th>
-            <th>Hostel</th>
-            <th>Semester</th>
-            <th>Date</th>
-            <th>Status</th>
-          </tr>
+          <tr><th>Booking ID</th><th>Hostel</th><th>Room</th><th>Date</th><th>Status</th></tr>
         </thead>
         <tbody id="recent-tbody">
           <tr><td colspan="5" style="text-align:center;padding:2rem">
@@ -104,18 +107,10 @@
   </main>
 
   <div id="toast-container"></div>
-
   <script src="../js/api.js"></script>
-  <script>
-    // Shared navbar initialiser
-    function initNavbar() {
-      const user = getCurrentUser();
-      if (!user) return;
-      const initials = user.name ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'S';
-      document.getElementById('user-avatar').textContent      = initials;
-      document.getElementById('user-name-badge').textContent  = user.name || 'Student';
-    }
-  </script>
   <script src="../js/dashboard.js"></script>
+  <script src="../js/weather.js"></script>
+  <script src="../js/chat.js"></script>
+  <script>initWeather('weather-container');</script>
 </body>
 </html>

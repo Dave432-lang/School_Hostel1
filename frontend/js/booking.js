@@ -1,73 +1,59 @@
-/**
- * booking.js — Booking history page logic
- * Fetches and renders the student's bookings.
- * Depends on: api.js
- */
+/* booking.js — Booking history page logic. Depends on api.js */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function () {
   requireAuth();
   initNavbar();
   loadBookings();
 
-  document.getElementById('status-filter')?.addEventListener('change', () => {
-    filterTable(document.getElementById('status-filter').value);
-  });
+  const filter = document.getElementById('status-filter');
+  if (filter) filter.addEventListener('change', function () { renderBookings(filterByStatus(filter.value)); });
 });
 
 let allBookings = [];
 
 async function loadBookings() {
   const tbody = document.getElementById('bookings-tbody');
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem"><div class="spinner" style="margin:0 auto"></div></td></tr>`;
-
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem"><div class="spinner" style="margin:0 auto"></div></td></tr>';
   try {
-    const data  = await Bookings.getMyBookings();
-    allBookings = data.bookings || data;
+    allBookings = await Bookings.getByUser(getCurrentUserId());
     renderBookings(allBookings);
-    updateSummaryCards(allBookings);
+    updateCards(allBookings);
   } catch (err) {
-    tbody.innerHTML = `
-      <tr><td colspan="7">
-        <div class="empty-state">
-          <div class="empty-icon">⚠️</div>
-          <h3>Could not load bookings</h3>
-          <p>${err.message}</p>
-          <button class="btn btn-primary btn-sm" style="margin-top:1rem" onclick="loadBookings()">Retry</button>
-        </div>
-      </td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:2rem">Error: ' + err.message + '</td></tr>';
   }
 }
 
 function renderBookings(bookings) {
   const tbody = document.getElementById('bookings-tbody');
-
+  if (!tbody) return;
   if (!bookings.length) {
-    tbody.innerHTML = `
-      <tr><td colspan="7">
-        <div class="empty-state">
-          <div class="empty-icon">📋</div>
-          <h3>No bookings yet</h3>
-          <p>You haven't made any hostel bookings yet.</p>
-          <a href="hostel-list.html" class="btn btn-primary btn-sm" style="margin-top:1rem">Browse Hostels</a>
-        </div>
-      </td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">'
+      + '<div class="empty-icon">📋</div>'
+      + '<h3>No bookings yet</h3>'
+      + '<p>You have not booked any hostel room yet.</p>'
+      + '<a href="hostel-list.html" class="btn btn-primary btn-sm" style="margin-top:1rem">Browse Hostels</a>'
+      + '</div></td></tr>';
     return;
   }
+  tbody.innerHTML = bookings.map(function (b) {
+    const cancelled = b.status === 'cancelled';
+    return '<tr>'
+      + '<td><strong>#' + String(b.id).padStart(4, '0') + '</strong></td>'
+      + '<td>' + (b.hostel_name || 'N/A') + '</td>'
+      + '<td>' + (b.room_number || 'N/A') + '</td>'
+      + '<td>' + cap(b.room_type || 'N/A') + '</td>'
+      + '<td>' + fmtDate(b.created_at) + '</td>'
+      + '<td><span class="badge ' + badge(b.status) + '">' + cap(b.status || 'pending') + '</span></td>'
+      + '<td>' + (!cancelled
+          ? '<button class="btn btn-danger btn-sm" onclick="cancelBooking(' + b.id + ')">Cancel</button>'
+          : '<span style="color:var(--text-muted)">—</span>') + '</td>'
+    + '</tr>';
+  }).join('');
+}
 
-  tbody.innerHTML = bookings.map((b, i) => `
-    <tr>
-      <td><strong>#${String(b.id).padStart(4,'0')}</strong></td>
-      <td>${b.hostel_name || '—'}</td>
-      <td>${b.room_number || b.room_type || '—'}</td>
-      <td>${b.semester || '—'}</td>
-      <td>${formatDate(b.created_at)}</td>
-      <td><span class="badge ${statusBadge(b.status)}">${capitalize(b.status)}</span></td>
-      <td>
-        ${b.status === 'pending' || b.status === 'confirmed'
-          ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancel</button>`
-          : '—'}
-      </td>
-    </tr>`).join('');
+function filterByStatus(status) {
+  return status ? allBookings.filter(function (b) { return b.status === status; }) : allBookings;
 }
 
 async function cancelBooking(id) {
@@ -77,34 +63,18 @@ async function cancelBooking(id) {
     showToast('Booking cancelled.', 'warning');
     loadBookings();
   } catch (err) {
-    showToast(err.message || 'Failed to cancel booking.', 'error');
+    showToast(err.message || 'Failed to cancel.', 'error');
   }
 }
 
-function filterTable(status) {
-  const filtered = status ? allBookings.filter(b => b.status === status) : allBookings;
-  renderBookings(filtered);
+function updateCards(bookings) {
+  setEl('count-total',     bookings.length);
+  setEl('count-confirmed', bookings.filter(function (b) { return b.status === 'confirmed'; }).length);
+  setEl('count-pending',   bookings.filter(function (b) { return b.status !== 'cancelled' && b.status !== 'confirmed'; }).length);
+  setEl('count-cancelled', bookings.filter(function (b) { return b.status === 'cancelled'; }).length);
 }
 
-function updateSummaryCards(bookings) {
-  const total     = bookings.length;
-  const confirmed = bookings.filter(b => b.status === 'confirmed').length;
-  const pending   = bookings.filter(b => b.status === 'pending').length;
-  const cancelled = bookings.filter(b => b.status === 'cancelled').length;
-
-  setEl('count-total',     total);
-  setEl('count-confirmed', confirmed);
-  setEl('count-pending',   pending);
-  setEl('count-cancelled', cancelled);
-}
-
-/* ---- Helpers ---- */
-function statusBadge(status) {
-  return { confirmed: 'badge-success', pending: 'badge-warning', cancelled: 'badge-danger' }[status] || 'badge-primary';
-}
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-function capitalize(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
 function setEl(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function badge(s) { return { confirmed: 'badge-success', pending: 'badge-warning', cancelled: 'badge-danger' }[s] || 'badge-primary'; }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'; }
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }

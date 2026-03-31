@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Bookings — School Hostel Booking System</title>
-  <meta name="description" content="View and manage your hostel booking history." />
+  <title>My Bookings — School Hostel Booking</title>
   <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
 
-  <!-- ====== NAVBAR ====== -->
-  <nav class="navbar" id="main-navbar">
+  <!-- NAVBAR -->
+  <nav class="navbar">
     <div class="navbar-brand">
       <div class="brand-icon">🏠</div>
       School Hostel
     </div>
     <ul class="navbar-nav">
-      <li><a href="dashboard.html" id="nav-dashboard">🏠 Dashboard</a></li>
-      <li><a href="hostel-list.html" id="nav-hostels">🏢 Hostels</a></li>
-      <li><a href="booking-history.html" class="active" id="nav-bookings">📋 My Bookings</a></li>
+      <li><a href="dashboard.html">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html">🗺️ Map</a></li>
+      <li><a href="booking-history.html" class="active">📋 My Bookings</a></li>
     </ul>
     <div class="navbar-right">
       <div class="user-badge">
@@ -29,12 +29,12 @@
     </div>
   </nav>
 
-  <!-- ====== PAGE ====== -->
+  <!-- PAGE -->
   <main class="page-wrapper">
 
     <div class="page-header">
       <h1>📋 My Booking History</h1>
-      <p>Track the status of all your hostel bookings.</p>
+      <p>Track and manage all your hostel bookings.</p>
     </div>
 
     <!-- Summary Stats -->
@@ -71,18 +71,17 @@
           <a href="hostel-list.html" class="btn btn-primary btn-sm">+ New Booking</a>
         </div>
       </div>
-
       <div style="overflow-x:auto">
         <table>
           <thead>
             <tr>
               <th>Booking ID</th>
               <th>Hostel</th>
-              <th>Room</th>
-              <th>Semester</th>
+              <th>Room No.</th>
+              <th>Room Type</th>
               <th>Date Booked</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody id="bookings-tbody">
@@ -97,17 +96,8 @@
   </main>
 
   <div id="toast-container"></div>
-
   <script src="../js/api.js"></script>
-  <script>
-    function initNavbar() {
-      const user = getCurrentUser();
-      if (!user) return;
-      const initials = user.name ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'S';
-      document.getElementById('user-avatar').textContent     = initials;
-      document.getElementById('user-name-badge').textContent = user.name || 'Student';
-    }
-  </script>
   <script src="../js/booking.js"></script>
+  <script src="../js/chat.js"></script>
 </body>
 </html>

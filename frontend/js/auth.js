@@ -1,102 +1,117 @@
-/**
- * auth.js — Handles login and registration UI logic
- * Depends on: api.js
- */
+/* auth.js — Login and Register page logic. Depends on api.js */
 
-document.addEventListener('DOMContentLoaded', () => {
+// Compute base path so redirects work under both Live Server and Express.
+// e.g.  Live Server: http://127.0.0.1:5500/frontend/  → 'pages/dashboard.html'
+//        Express:     http://localhost:5000/            → 'pages/dashboard.html'
+function dashboardURL() {
+  // Current URL directory (strip the filename)
+  const base = window.location.href.replace(/\/[^/]*$/, '/');
+  return base + 'pages/dashboard.html';
+}
 
-  // If already logged in, skip straight to dashboard
+document.addEventListener('DOMContentLoaded', function () {
+
+  // If already logged in, go straight to dashboard
   if (isLoggedIn()) {
-    window.location.href = 'pages/dashboard.html';
+    window.location.href = dashboardURL();
     return;
   }
 
-  /* ---- Tabs: Login / Register ---- */
-  const tabBtns = document.querySelectorAll('[data-tab]');
+  /* ---- Tab switching ---- */
+  const tabBtns   = document.querySelectorAll('[data-tab]');
   const tabPanels = document.querySelectorAll('[data-panel]');
 
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      tabPanels.forEach(p => p.classList.add('hidden'));
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      tabBtns.forEach(function (b) { b.classList.remove('active'); });
+      tabPanels.forEach(function (p) { p.classList.add('hidden'); });
       btn.classList.add('active');
-      document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.remove('hidden');
+      document.querySelector('[data-panel="' + btn.dataset.tab + '"]').classList.remove('hidden');
       hideAlert('login-alert');
       hideAlert('register-alert');
     });
   });
 
-  /* ---- Login Form ---- */
-  const loginForm = document.getElementById('login-form');
-  loginForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email    = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    const btn      = loginForm.querySelector('[type="submit"]');
-
-    setLoading(btn, true);
-    hideAlert('login-alert');
-
-    try {
-      const data = await Auth.login(email, password);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = 'pages/dashboard.html';
-    } catch (err) {
-      showAlert('login-alert', err.message || 'Login failed. Check your credentials.', 'error');
-    } finally {
-      setLoading(btn, false);
-    }
-  });
-
-  /* ---- Register Form ---- */
-  const registerForm = document.getElementById('register-form');
-  registerForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name     = document.getElementById('reg-name').value.trim();
-    const email    = document.getElementById('reg-email').value.trim();
-    const password = document.getElementById('reg-password').value;
-    const confirm  = document.getElementById('reg-confirm').value;
-    const btn      = registerForm.querySelector('[type="submit"]');
-
-    if (password !== confirm) {
-      showAlert('register-alert', 'Passwords do not match.', 'error');
-      return;
-    }
-
-    setLoading(btn, true);
-    hideAlert('register-alert');
-
-    try {
-      const data = await Auth.register({ name, email, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = 'pages/dashboard.html';
-    } catch (err) {
-      showAlert('register-alert', err.message || 'Registration failed. Please try again.', 'error');
-    } finally {
-      setLoading(btn, false);
-    }
-  });
-
-  /* ---- Password toggle ---- */
-  document.querySelectorAll('[data-toggle-password]').forEach(btn => {
-    btn.addEventListener('click', () => {
+  /* ---- Password show/hide ---- */
+  document.querySelectorAll('[data-toggle-password]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       const target = document.getElementById(btn.dataset.togglePassword);
       if (!target) return;
-      const isText = target.type === 'text';
-      target.type = isText ? 'password' : 'text';
-      btn.textContent = isText ? '👁️' : '🙈';
+      target.type = (target.type === 'text') ? 'password' : 'text';
+      btn.textContent = (target.type === 'text') ? 'Hide' : 'Show';
     });
   });
+
+  /* ---- LOGIN ---- */
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const btn      = document.getElementById('login-btn');
+      hideAlert('login-alert');
+      btn.disabled    = true;
+      btn.textContent = 'Signing in...';
+      try {
+        const data = await Auth.login(email, password);
+        localStorage.setItem('user_id',    data.user_id);
+        localStorage.setItem('user_name',  data.name || 'Student');
+        localStorage.setItem('user_email', data.email || email);
+        localStorage.setItem('token',      data.token);
+        window.location.href = dashboardURL();
+      } catch (err) {
+        showAlert('login-alert', err.message || 'Login failed. Check your credentials.');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+  }
+
+  /* ---- REGISTER ---- */
+  const regForm = document.getElementById('register-form');
+  if (regForm) {
+    regForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const first_name = document.getElementById('reg-first-name').value.trim();
+      const last_name  = document.getElementById('reg-last-name').value.trim();
+      const student_id = document.getElementById('reg-student-id').value.trim();
+      const programme  = document.getElementById('reg-programme').value.trim();
+      const year_of_study = document.getElementById('reg-level').value;
+      const email    = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const confirm  = document.getElementById('reg-confirm').value;
+      const btn      = regForm.querySelector('[type="submit"]');
+      hideAlert('register-alert');
+      if (!year_of_study) { showAlert('register-alert', 'Please select a Year of Study.'); return; }
+      if (password !== confirm) { showAlert('register-alert', 'Passwords do not match.'); return; }
+      if (password.length < 6)  { showAlert('register-alert', 'Password must be at least 6 characters.'); return; }
+      btn.disabled    = true;
+      btn.textContent = 'Creating account...';
+      try {
+        const payload = { first_name, last_name, student_id, programme, year_of_study, email, password };
+        const data = await Auth.register(payload);
+        localStorage.setItem('user_id',    data.user_id);
+        localStorage.setItem('user_name',  data.name || (first_name + ' ' + last_name));
+        localStorage.setItem('user_email', data.email || email);
+        localStorage.setItem('token',      data.token);
+        window.location.href = dashboardURL();
+      } catch (err) {
+        showAlert('register-alert', err.message || 'Registration failed. Please try again.');
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Create Account';
+      }
+    });
+  }
 });
 
-/* ---- Helpers ---- */
-function showAlert(id, msg, type = 'error') {
+function showAlert(id, msg) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
-  el.className = `alert alert-${type} show`;
+  el.classList.add('show');
 }
 
 function hideAlert(id) {
@@ -104,7 +119,7 @@ function hideAlert(id) {
   if (el) el.classList.remove('show');
 }
 
-function setLoading(btn, loading) {
-  btn.disabled = loading;
-  btn.textContent = loading ? 'Please wait...' : btn.dataset.defaultText || 'Submit';
+function switchTab(tab) {
+  const btn = document.querySelector('[data-tab="' + tab + '"]');
+  if (btn) btn.click();
 }

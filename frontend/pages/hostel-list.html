@@ -3,22 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Browse Hostels — School Hostel Booking System</title>
-  <meta name="description" content="Browse available hostels and book your room for the semester." />
+  <title>Browse Hostels — School Hostel Booking</title>
   <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* ---- Rooms table ---- */
+    .rooms-table { width:100%; border-collapse:collapse; }
+    .rooms-table th, .rooms-table td { padding:.7rem 1rem; text-align:left; border-bottom:1px solid var(--border); font-size:.875rem; }
+    .rooms-table thead th { background:#f8fafc; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:600; }
+
+    /* ---- Contact strip on hostel cards ---- */
+    .hostel-contact { border-top:1px solid var(--border); margin-top:.75rem; padding-top:.75rem; display:flex; flex-direction:column; gap:.3rem; }
+    .contact-row { display:flex; align-items:center; gap:.5rem; font-size:.8rem; color:var(--text-muted); }
+    .contact-row a { color:var(--primary); text-decoration:none; }
+    .contact-row a:hover { text-decoration:underline; }
+
+    /* ---- Payment modal ---- */
+    .pay-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); z-index:1100; display:none; align-items:center; justify-content:center; padding:1rem; }
+    .pay-modal-overlay.open { display:flex; }
+    .pay-modal {
+      background:#fff;
+      border-radius:20px;
+      width:100%;
+      max-width:460px;
+      max-height:90vh;        /* never taller than viewport */
+      display:flex;
+      flex-direction:column;  /* header / body / footer stack */
+      overflow:hidden;
+      box-shadow:0 24px 60px rgba(0,0,0,.25);
+    }
+    .pay-modal-header { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:1.25rem 1.5rem; flex-shrink:0; }
+    .pay-modal-header h3 { margin:0; font-size:1.05rem; }
+    .pay-modal-header p { margin:.3rem 0 0; font-size:.82rem; opacity:.85; }
+    .pay-modal-body {
+      padding:1.25rem 1.5rem;
+      overflow-y:auto;        /* scroll when content is tall */
+      flex:1 1 auto;          /* take all available space */
+    }
+    .pay-amount-box { background:#f8fafc; border:2px solid var(--border); border-radius:12px; padding:.9rem 1.1rem; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; }
+    .pay-amount-box .label { font-size:.78rem; color:var(--text-muted); font-weight:500; }
+    .pay-amount-box .amount { font-size:1.4rem; font-weight:700; color:var(--primary); }
+
+    /* Payment method selector */
+    .pay-methods { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
+    .pay-method-btn { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; border:2px solid var(--border); border-radius:12px; cursor:pointer; transition:all .2s; background:#fff; width:100%; text-align:left; font-size:.875rem; font-weight:500; }
+    .pay-method-btn:hover, .pay-method-btn.selected { border-color:var(--primary); background:#f0f4ff; }
+    .pay-method-icon { font-size:1.3rem; width:2rem; text-align:center; }
+    .pay-method-label { flex:1; }
+    .pay-method-sub { font-size:.73rem; color:var(--text-muted); font-weight:400; }
+    .pay-phone-wrap { display:none; margin-bottom:.75rem; }
+    .pay-phone-wrap.show { display:block; }
+
+    .pay-modal-footer { padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:.75rem; flex-shrink:0; background:#fff; }
+  </style>
 </head>
 <body>
 
-  <!-- ====== NAVBAR ====== -->
-  <nav class="navbar" id="main-navbar">
+  <!-- NAVBAR -->
+  <nav class="navbar">
     <div class="navbar-brand">
-      <div class="brand-icon">🏠</div>
-      School Hostel
+      <div class="brand-icon">🏠</div>School Hostel
     </div>
     <ul class="navbar-nav">
-      <li><a href="dashboard.html" id="nav-dashboard">🏠 Dashboard</a></li>
-      <li><a href="hostel-list.html" class="active" id="nav-hostels">🏢 Hostels</a></li>
-      <li><a href="booking-history.html" id="nav-bookings">📋 My Bookings</a></li>
+      <li><a href="dashboard.html">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html" class="active">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html">🗺️ Map</a></li>
+      <li><a href="booking-history.html">📋 My Bookings</a></li>
     </ul>
     <div class="navbar-right">
       <div class="user-badge">
@@ -29,19 +78,18 @@
     </div>
   </nav>
 
-  <!-- ====== PAGE ====== -->
+  <!-- PAGE -->
   <main class="page-wrapper">
-
     <div class="page-header">
       <h1>🏢 Available Hostels</h1>
-      <p>Browse and book accommodation for the upcoming semester.</p>
+      <p>Browse and book a room for the upcoming semester.</p>
     </div>
 
-    <!-- Filters Bar -->
+    <!-- Filters -->
     <div class="filters-bar">
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input class="form-control" type="search" id="search-input" placeholder="Search hostel name or location…" />
+        <input class="form-control" type="search" id="search-input" placeholder="Search hostel or location…" />
       </div>
       <select class="form-control filter-select" id="type-filter">
         <option value="">All Types</option>
@@ -55,91 +103,215 @@
         <option value="female">Female</option>
         <option value="mixed">Mixed</option>
       </select>
-      <select class="form-control filter-select" id="sort-select">
-        <option value="">Sort By</option>
-        <option value="price-asc">Price: Low → High</option>
-        <option value="price-desc">Price: High → Low</option>
-        <option value="rooms">Most Available</option>
-      </select>
       <span id="hostel-count" style="font-size:.875rem;color:var(--text-muted);white-space:nowrap"></span>
     </div>
 
     <!-- Hostel Grid -->
     <div class="hostels-grid" id="hostels-grid">
-      <div class="loading-wrap" style="grid-column:1/-1">
-        <div class="spinner"></div>
-      </div>
+      <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
     </div>
-
   </main>
 
-  <!-- ====== BOOKING MODAL ====== -->
-  <div class="modal-overlay" id="booking-modal">
+  <!-- ======== ROOMS MODAL ======== -->
+  <div class="modal-overlay" id="rooms-modal">
     <div class="modal">
       <div class="modal-header">
-        <h3>📋 Book a Room</h3>
-        <button class="modal-close" onclick="closeBookingModal()">✕</button>
+        <h3>🛏️ Rooms — <span id="modal-hostel-name"></span></h3>
+        <button class="modal-close" onclick="closeRoomsModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div style="margin-bottom:1.25rem;padding:1rem;background:var(--primary-light);border-radius:var(--radius-sm)">
-          <div style="font-weight:700;font-size:1.05rem" id="modal-hostel-name">Hostel Name</div>
-          <div style="color:var(--primary);font-weight:600;margin-top:.25rem" id="modal-hostel-price"></div>
+      <div class="modal-body" style="padding:0">
+        <table class="rooms-table">
+          <thead>
+            <tr><th>Room No.</th><th>Type</th><th>Capacity</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="rooms-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:2rem">
+              <div class="spinner" style="margin:0 auto"></div>
+            </td></tr>
+          </tbody>
+        </table>
+        <div style="padding: 1.5rem; border-top: 1px solid var(--border);">
+          <h4 style="margin-bottom: 1rem;">Student Reviews</h4>
+          <div id="reviews-container"></div>
         </div>
-
-        <div class="alert alert-error" id="booking-alert"></div>
-
-        <form id="booking-form">
-          <input type="hidden" id="book-hostel-id" />
-
-          <div class="form-group">
-            <label class="form-label" for="book-room-type">Room Type</label>
-            <select class="form-control" id="book-room-type" required>
-              <option value="">Select room type</option>
-              <option value="single">Single Room</option>
-              <option value="double">Double Room (shared)</option>
-              <option value="triple">Triple Room (shared)</option>
-            </select>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="book-semester">Semester</label>
-              <select class="form-control" id="book-semester" required>
-                <option value="">Select semester</option>
-                <option value="First Semester">First Semester</option>
-                <option value="Second Semester">Second Semester</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="book-year">Academic Year</label>
-              <select class="form-control" id="book-year" required>
-                <option value="2024/2025">2024 / 2025</option>
-                <option value="2025/2026" selected>2025 / 2026</option>
-                <option value="2026/2027">2026 / 2027</option>
-              </select>
-            </div>
-          </div>
-        </form>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="closeBookingModal()">Cancel</button>
-        <button class="btn btn-primary" type="submit" form="booking-form">Confirm Booking</button>
+      <div class="modal-footer" id="modal-footer-normal">
+        <button class="btn btn-outline" onclick="closeRoomsModal()">Close</button>
+      </div>
+      <!-- Inline confirm bar -->
+      <div class="modal-footer" id="modal-confirm-bar"
+           style="display:none;background:#fffbeb;border-top:2px solid #f59e0b;flex-direction:column;align-items:stretch;gap:.5rem;">
+        <p style="font-size:.9rem;font-weight:600;margin:0">Proceed to pay for <span id="confirm-room-label"></span>?</p>
+        <div style="display:flex;gap:.75rem">
+          <button class="btn btn-success" style="flex:1" id="confirm-yes-btn">💳 Pay Now</button>
+          <button class="btn btn-outline" style="flex:1" onclick="cancelConfirm()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div id="toast-container"></div>
+  <!-- ======== PAYMENT MODAL ======== -->
+  <div class="pay-modal-overlay" id="pay-modal">
+    <div class="pay-modal">
+      <div class="pay-modal-header">
+        <h3>💳 Complete Payment</h3>
+        <p>Choose your preferred payment method to confirm your room</p>
+      </div>
+      <div class="pay-modal-body">
 
+        <!-- Semester Selection -->
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label">Academic Semester</label>
+          <select class="form-control" id="pay-semester" required>
+            <option value="" disabled selected>Select the semester you are booking for...</option>
+            <option value="First Semester 2026/2027">First Semester 2026/2027</option>
+            <option value="Second Semester 2026/2027">Second Semester 2026/2027</option>
+          </select>
+        </div>
+
+        <!-- Amount display -->
+        <div class="pay-amount-box">
+          <div>
+            <div class="label">Amount Due</div>
+            <div class="amount" id="pay-amount-display">GH₵ 0.00</div>
+          </div>
+          <div style="font-size:2rem">🏠</div>
+        </div>
+
+        <!-- Payment methods -->
+        <div class="pay-methods">
+          <button class="pay-method-btn" onclick="selectMethod('mtn')" id="method-mtn">
+            <span class="pay-method-icon">🟡</span>
+            <div class="pay-method-label">
+              MTN Mobile Money
+              <div class="pay-method-sub">Send via MTN MoMo wallet</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('vodafone')" id="method-vodafone">
+            <span class="pay-method-icon">🔴</span>
+            <div class="pay-method-label">
+              Vodafone Cash
+              <div class="pay-method-sub">Pay with Vodafone Cash</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('airtel')" id="method-airtel">
+            <span class="pay-method-icon">🟠</span>
+            <div class="pay-method-label">
+              AirtelTigo Money
+              <div class="pay-method-sub">Pay with AirtelTigo wallet</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('card')" id="method-card">
+            <span class="pay-method-icon">💳</span>
+            <div class="pay-method-label">
+              Debit / Credit Card
+              <div class="pay-method-sub">Visa, Mastercard, Verve</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- Phone number (shown for mobile money only) -->
+        <div class="pay-phone-wrap" id="pay-phone-wrap">
+          <label class="form-label">Mobile Money Phone Number</label>
+          <input class="form-control" type="tel" id="pay-phone"
+                 placeholder="e.g. 0244000001" maxlength="10" />
+          <small style="color:var(--text-muted);font-size:.78rem">Enter the number linked to your mobile wallet</small>
+        </div>
+
+        <!-- Card details (shown for card only test mode) -->
+        <div class="pay-phone-wrap" id="pay-card-wrap" style="display:none; margin-bottom:.75rem;">
+          <div style="background:#fcfcfc; border:2px solid var(--border); border-radius:12px; padding:1.2rem;">
+            <label class="form-label" style="font-size:.85rem">Card Number</label>
+            <input class="form-control" type="text" placeholder="0000 0000 0000 0000" maxlength="19" style="margin-bottom:1rem;" />
+            <div style="display:flex;gap:1rem;">
+              <div style="flex:1">
+                <label class="form-label" style="font-size:.85rem">Expiry Date</label>
+                <input class="form-control" type="text" placeholder="MM/YY" maxlength="5" />
+              </div>
+              <div style="flex:1">
+                <label class="form-label" style="font-size:.85rem">CVV</label>
+                <input class="form-control" type="password" placeholder="***" maxlength="4" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Occupancy Agreement -->
+        <div class="booking-terms">
+          <b>Hostel Occupancy Agreement</b><br/>
+          By booking this room, you agree to abide by all rules and regulations of the hostel. 
+          1. Rent is strictly non-refundable once paid.<br/>
+          2. No illegal substances are allowed on the premises.<br/>
+          3. Respect your roommates and maintain a quiet environment during study hours.<br/>
+          Failure to comply may result in eviction without refund.
+        </div>
+        <div class="terms-check">
+          <input type="checkbox" id="pay-agreement-check" />
+          <label for="pay-agreement-check" style="cursor:pointer; user-select:none;">I have read the hostel occupancy agreement and agree to the terms.</label>
+        </div>
+
+      </div>
+      <div class="pay-modal-footer">
+        <button class="btn btn-outline" style="flex:1" onclick="closePayModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" id="pay-now-btn" onclick="processPayment()">
+          🔒 Pay Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ======== RECEIPT MODAL ======== -->
+  <div class="pay-modal-overlay" id="receipt-modal">
+    <div class="pay-modal" style="max-width:400px; padding: 0;">
+      <div class="pay-modal-header" style="text-align:center; background: #fff; color: var(--text-main); border-bottom: 1px dashed #ccc;">
+        <div style="font-size: 2.5rem; margin-bottom: .5rem;">✅</div>
+        <h3 style="margin-bottom: .25rem; font-size: 1.25rem;">Payment Successful</h3>
+        <p style="color: var(--text-muted); font-size: .85rem;" id="receipt-email-msg">Confirmation sent to email</p>
+      </div>
+      <div class="pay-modal-body" style="background:#f8fafc; padding: 1.5rem;" id="receipt-content">
+        <div style="margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Reference</span>
+          <strong id="rcpt-ref" style="font-family:monospace; font-size:.9rem;">#--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Student</span>
+          <strong id="rcpt-student" style="font-size:.85rem;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Hostel</span>
+          <strong id="rcpt-hostel" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Room/Type</span>
+          <strong id="rcpt-room" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Semester</span>
+          <strong id="rcpt-sem" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Payment Method</span>
+          <strong id="rcpt-method" style="font-size:.85rem; text-transform:uppercase;">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:600;">Total Paid</span>
+          <strong id="rcpt-total" style="font-size:1.2rem; color:var(--primary);">GH₵ 0.00</strong>
+        </div>
+      </div>
+      <div class="pay-modal-footer" style="background:#fff;">
+        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('receipt-modal').classList.remove('open')">Close</button>
+        <button class="btn btn-primary" style="flex:1" onclick="printReceipt()">🖨️ Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paystack inline JS -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <div id="toast-container"></div>
   <script src="../js/api.js"></script>
-  <script>
-    function initNavbar() {
-      const user = getCurrentUser();
-      if (!user) return;
-      const initials = user.name ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'S';
-      document.getElementById('user-avatar').textContent     = initials;
-      document.getElementById('user-name-badge').textContent = user.name || 'Student';
-    }
-  </script>
-  <script src="../js/hostels.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/chat.js"></script>
 </body>
 </html>

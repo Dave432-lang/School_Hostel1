@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hostel Map — School Hostel Booking</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: calc(100vh - 64px - 5rem); min-height: 400px; border-radius: 16px; z-index: 1; }
+    .map-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .map-layout  { display: flex; gap: 1.5rem; align-items: flex-start; }
+    .hostel-list-item {
+      background: #fff; border-radius: 12px; padding: .85rem 1rem;
+      border: 2px solid var(--border); cursor: pointer; transition: all .2s;
+    }
+    .hostel-list-item:hover, .hostel-list-item.active { border-color: var(--primary); background: #f0f4ff; }
+    .hostel-list-item .h-name  { font-weight: 700; font-size: .9rem; }
+    .hostel-list-item .h-avail { font-size: .78rem; color: var(--text-muted); margin-top: .2rem; }
+    .map-legend { background:#fff; border-radius:12px; padding:1rem; border:1px solid var(--border); }
+    .legend-row { display:flex; align-items:center; gap:.5rem; font-size:.82rem; color:var(--text-muted); margin-bottom:.4rem; }
+    @media (max-width: 720px) { .map-layout { flex-direction: column; } .map-sidebar { width: 100%; } #map { height: 50vh; } }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand"><div class="brand-icon">🏠</div>School Hostel</div>
+    <ul class="navbar-nav">
+      <li><a href="dashboard.html">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html" class="active">🗺️ Map</a></li>
+      <li><a href="booking-history.html">📋 My Bookings</a></li>
+    </ul>
+    <div class="navbar-right">
+      <div class="user-badge">
+        <div class="avatar" id="user-avatar">S</div>
+        <span id="user-name-badge">Student</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <main class="page-wrapper">
+    <div class="page-header" style="margin-bottom:1.25rem">
+      <h1>🗺️ Hostel Map</h1>
+      <p>Locate hostels around campus and get directions.</p>
+    </div>
+
+    <div class="map-layout">
+      <!-- Sidebar: hostel list -->
+      <div class="map-sidebar">
+        <div id="hostel-sidebar">
+          <div style="text-align:center;padding:1.5rem"><div class="spinner" style="margin:0 auto"></div></div>
+        </div>
+        <div class="map-legend">
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:.6rem">Legend</div>
+          <div class="legend-row">🟢 Available rooms</div>
+          <div class="legend-row">🔴 Fully booked</div>
+          <div class="legend-row">📍 Your location</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="locateMe()">📍 Show My Location</button>
+        <a href="hostel-list.html" class="btn btn-primary btn-sm">🏢 Book a Room</a>
+      </div>
+
+      <!-- Map -->
+      <div style="flex:1;min-width:0">
+        <div id="map"></div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../js/api.js"></script>
+  <script>
+    requireAuth();
+    initNavbar();
+
+    var map          = null;
+    var userMarker   = null;
+    var hostelMarkers = [];
+
+    // Initialize map centered on KNUST campus
+    map = L.map('map').setView([6.6745, -1.5716], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    function makeIcon(available) {
+      return L.divIcon({
+        className: '',
+        html: '<div style="font-size:1.8rem;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))">' + (available ? '🟢' : '🔴') + '</div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -18]
+      });
+    }
+
+    async function loadMap() {
+      try {
+        var hostels = await Hostels.getAll();
+        renderSidebar(hostels);
+        hostels.forEach(function (h) {
+          if (!h.latitude || !h.longitude) return;
+          var avail   = parseInt(h.available_rooms) || 0;
+          var marker  = L.marker([parseFloat(h.latitude), parseFloat(h.longitude)], { icon: makeIcon(avail > 0) })
+            .addTo(map);
+          var popup = '<div style="font-family:inherit;min-width:180px">'
+            + '<div style="font-weight:700;font-size:.95rem;margin-bottom:.3rem">' + h.name + '</div>'
+            + '<div style="font-size:.8rem;color:#6b7280;margin-bottom:.5rem">📍 ' + (h.location || 'On Campus') + '</div>'
+            + '<div style="font-size:.82rem;margin-bottom:.5rem">'
+              + (avail > 0 ? '✅ <strong>' + avail + ' room' + (avail > 1 ? 's' : '') + '</strong> available' : '❌ Fully Booked')
+            + '</div>'
+            + (h.phone ? '<div style="font-size:.8rem">📞 <a href="tel:' + h.phone + '">' + h.phone + '</a></div>' : '')
+            + '<div style="margin-top:.6rem;display:flex;gap:.4rem">'
+              + '<a href="https://www.google.com/maps/dir/?api=1&destination=' + h.latitude + ',' + h.longitude + '" target="_blank" style="font-size:.78rem;color:#667eea;font-weight:600">🗺️ Get Directions</a>'
+              + '&nbsp;·&nbsp;'
+              + '<a href="hostel-list.html" style="font-size:.78rem;color:#667eea;font-weight:600">🏢 Book</a>'
+            + '</div>'
+          + '</div>';
+          marker.bindPopup(popup, { maxWidth: 220 });
+          hostelMarkers.push({ hostelId: h.id, marker: marker });
+        });
+      } catch (err) {
+        showToast('Could not load hostels: ' + err.message, 'error');
+      }
+    }
+
+    function renderSidebar(hostels) {
+      var div = document.getElementById('hostel-sidebar');
+      div.innerHTML = hostels.map(function (h) {
+        var rooms = parseInt(h.available_rooms) || 0;
+        return '<div class="hostel-list-item" onclick="focusHostel(' + h.id + ')">'
+          + '<div class="h-name">' + h.name + '</div>'
+          + '<div class="h-avail">' + (rooms > 0 ? '🟢 ' + rooms + ' rooms available' : '🔴 Fully Booked') + '</div>'
+        + '</div>';
+      }).join('');
+    }
+
+    window.focusHostel = function (hostelId) {
+      document.querySelectorAll('.hostel-list-item').forEach(function (el) { el.classList.remove('active'); });
+      event.currentTarget && event.currentTarget.classList.add('active');
+      var entry = hostelMarkers.find(function (m) { return m.hostelId == hostelId; });
+      if (entry) {
+        map.setView(entry.marker.getLatLng(), 18, { animate: true });
+        entry.marker.openPopup();
+      }
+    };
+
+    window.locateMe = function () {
+      if (!navigator.geolocation) { showToast('Geolocation not supported.', 'warning'); return; }
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        var latlng = [pos.coords.latitude, pos.coords.longitude];
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker(latlng, {
+          icon: L.divIcon({ className:'', html:'<div style="font-size:1.8rem">📍</div>', iconSize:[32,32], iconAnchor:[16,16] })
+        }).addTo(map).bindPopup('📍 You are here').openPopup();
+        map.setView(latlng, 17, { animate: true });
+      }, function () { showToast('Location access denied.', 'warning'); });
+    };
+
+    function showToast(msg, type) {
+      var c = document.getElementById('toast-container');
+      if (!c) return;
+      var t = document.createElement('div');
+      t.className = 'toast ' + (type || 'info');
+      t.innerHTML = '<span class="toast-msg">' + msg + '</span>';
+      c.appendChild(t);
+      setTimeout(function () { t.remove(); }, 4000);
+    }
+
+    loadMap();
+  </script>
+</body>
+</html>

@@ -1,135 +1,84 @@
-/**
- * api.js — Centralised API helper
- * All fetch calls to the backend go through here.
- * Automatically attaches JWT token from localStorage.
- */
+/* api.js — Central API helper. All backend calls go here. */
+let BASE_URL = 'http://localhost:5000';
+if (window.location.origin.includes('ngrok') || window.location.origin.includes('loca.lt')) {
+  BASE_URL = window.location.origin;
+} else if (window.location.port === '5000') {
+  BASE_URL = window.location.origin;
+}
 
-const BASE_URL = 'http://localhost:5000/api';
-
-/**
- * Core fetch wrapper
- * @param {string} endpoint  - e.g. '/hostels'
- * @param {object} options   - standard fetch options (method, body, etc.)
- */
-async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
-
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
-
-  const config = {
-    ...options,
-    headers,
-  };
-
+async function apiFetch(endpoint, options) {
+  options = options || {};
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+  const config = Object.assign({}, options, { headers });
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
+    const response = await fetch(BASE_URL + endpoint, config);
     const data = await response.json();
-
-    if (!response.ok) {
-      // If 401, token expired — force logout
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/frontend/index.html';
-      }
-      throw new Error(data.message || `Request failed: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(data.error || data.message || 'Request failed');
     return data;
   } catch (err) {
-    console.error(`[API Error] ${endpoint}:`, err.message);
+    console.error('[API Error]', endpoint, err.message);
     throw err;
   }
 }
 
-/* ---- Auth ---- */
 const Auth = {
   login(email, password) {
-    return apiFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    return apiFetch('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   },
-  register(payload) {
-    return apiFetch('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-};
-
-/* ---- Hostels ---- */
-const Hostels = {
-  getAll(params = {}) {
-    const qs = new URLSearchParams(params).toString();
-    return apiFetch(`/hostels${qs ? '?' + qs : ''}`);
-  },
-  getById(id) {
-    return apiFetch(`/hostels/${id}`);
-  },
-};
-
-/* ---- Bookings ---- */
-const Bookings = {
-  create(payload) {
-    return apiFetch('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-  getMyBookings() {
-    return apiFetch('/bookings/my');
-  },
-  cancel(id) {
-    return apiFetch(`/bookings/${id}/cancel`, { method: 'PATCH' });
-  },
-};
-
-/* ---- Helpers ---- */
-function getCurrentUser() {
-  try {
-    return JSON.parse(localStorage.getItem('user'));
-  } catch {
-    return null;
+  register(userObj) {
+    return apiFetch('/register', { method: 'POST', body: JSON.stringify(userObj) });
   }
-}
+};
 
-function isLoggedIn() {
-  return !!localStorage.getItem('token');
+const Hostels = {
+  getAll() { return apiFetch('/hostels'); },
+  getRooms(hostelId) { return apiFetch('/rooms/' + hostelId); },
+  getReviews(hostelId) { return apiFetch('/hostels/' + hostelId + '/reviews'); }
+};
+
+const Bookings = {
+  create(payload) { return apiFetch('/bookings', { method: 'POST', body: JSON.stringify(payload) }); },
+  getByUser(user_id) { return apiFetch('/bookings/' + user_id); },
+  cancel(bookingId) { return apiFetch('/bookings/' + bookingId + '/cancel', { method: 'PATCH' }); }
+};
+
+/* ---- Session ---- */
+function getCurrentUserId() { return localStorage.getItem('user_id'); }
+function getCurrentUserName() { return localStorage.getItem('user_name') || 'Student'; }
+function getCurrentUserEmail() { return localStorage.getItem('user_email') || ''; }
+function isLoggedIn() { return !!localStorage.getItem('user_id'); }
+
+function getLoginUrl() {
+  return window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
 }
 
 function logout() {
+  localStorage.removeItem('user_id');
+  localStorage.removeItem('user_name');
+  localStorage.removeItem('user_email');
   localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  window.location.href = '/frontend/index.html';
+  window.location.href = getLoginUrl();
 }
 
-/**
- * Guard — redirect to login if not authenticated.
- * Call at the top of every protected page.
- */
 function requireAuth() {
-  if (!isLoggedIn()) {
-    window.location.href = '/frontend/index.html';
-  }
+  if (!isLoggedIn()) window.location.href = getLoginUrl();
 }
 
-/** Show a toast notification */
-function showToast(message, type = 'info') {
+function initNavbar() {
+  const name = getCurrentUserName();
+  const nameEl = document.getElementById('user-name-badge');
+  const avEl = document.getElementById('user-avatar');
+  if (nameEl) nameEl.textContent = name;
+  if (avEl) avEl.textContent = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function showToast(message, type) {
+  type = type || 'info';
   const container = document.getElementById('toast-container');
   if (!container) return;
-
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <span class="toast-icon">${icons[type] || icons.info}</span>
-    <span class="toast-msg">${message}</span>
-  `;
+  toast.className = 'toast ' + type;
+  toast.innerHTML = '<span class="toast-msg">' + message + '</span>';
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
 }
