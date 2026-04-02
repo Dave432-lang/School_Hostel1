@@ -25,10 +25,20 @@
     <ul class="navbar-nav">
       <li><a href="dashboard.html" class="active">🏠 Dashboard</a></li>
       <li><a href="hostel-list.html">🏢 Hostels</a></li>
-      <li><a href="hostel-map.html">🗺️ Map</a></li>
+      <li><a href="hostel-map.html">🗺️ Map View</a></li>
       <li><a href="booking-history.html">📋 My Bookings</a></li>
     </ul>
     <div class="navbar-right">
+      <div class="nav-bell-wrapper" id="nav-bell" onclick="toggleNotifications()">
+        <span class="bell-icon">🔔</span>
+        <span class="bell-badge" id="noti-badge" style="display:none">0</span>
+        <div class="notification-dropdown" id="noti-dropdown">
+          <div class="noti-header">Recent Notifications</div>
+          <div id="noti-list">
+            <div class="noti-empty">No notifications yet.</div>
+          </div>
+        </div>
+      </div>
       <div class="user-badge">
         <div class="avatar" id="user-avatar">S</div>
         <span id="user-name-badge">Student</span>

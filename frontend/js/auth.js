@@ -4,15 +4,20 @@
 // e.g.  Live Server: http://127.0.0.1:5500/frontend/  → 'pages/dashboard.html'
 //        Express:     http://localhost:5000/            → 'pages/dashboard.html'
 function dashboardURL() {
-  // Current URL directory (strip the filename)
-  const base = window.location.href.replace(/\/[^/]*$/, '/');
-  return base + 'pages/dashboard.html';
+  const role = localStorage.getItem('user_role');
+  const path = window.location.pathname;
+  const isInPages = path.includes('/pages/');
+  const base = isInPages ? './' : 'pages/';
+  
+  if (role === 'admin') return base + 'admin.html';
+  return base + 'dashboard.html';
 }
 
 document.addEventListener('DOMContentLoaded', function () {
 
-  // If already logged in, go straight to dashboard
-  if (isLoggedIn()) {
+  // Auto-redirect to dashboard ONLY if we are on the login page (index.html)
+  const isLoginPage = !window.location.pathname.includes('/pages/');
+  if (isLoginPage && isLoggedIn()) {
     window.location.href = dashboardURL();
     return;
   }
@@ -56,8 +61,9 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         const data = await Auth.login(email, password);
         localStorage.setItem('user_id',    data.user_id);
-        localStorage.setItem('user_name',  data.name || 'Student');
+        localStorage.setItem('user_name',  data.name || 'User');
         localStorage.setItem('user_email', data.email || email);
+        localStorage.setItem('user_role',  data.role || 'student');
         localStorage.setItem('token',      data.token);
         window.location.href = dashboardURL();
       } catch (err) {
@@ -95,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem('user_id',    data.user_id);
         localStorage.setItem('user_name',  data.name || (first_name + ' ' + last_name));
         localStorage.setItem('user_email', data.email || email);
+        localStorage.setItem('user_role',  data.role || 'student');
         localStorage.setItem('token',      data.token);
         window.location.href = dashboardURL();
       } catch (err) {

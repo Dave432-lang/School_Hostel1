@@ -19,6 +19,58 @@ app.use(express.json());
 const frontendPath = path.join(__dirname, '..', 'frontend');
 app.use(express.static(frontendPath));
 
+/* ---- Middleware: Auth & Admin ---- */
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Access denied' });
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
+
+const isAdmin = async (req, res, next) => {
+  try {
+    const r = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    if (r.rows.length && r.rows[0].role === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ error: 'Admin privileges required' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error checking admin role' });
+  }
+};
+const isManager = async (req, res, next) => {
+  try {
+    const r = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    if (r.rows.length && (r.rows[0].role === 'manager' || r.rows[0].role === 'admin')) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Manager privileges required' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error checking manager role' });
+  }
+};
+
+const isAdminOrManager = async (req, res, next) => {
+  try {
+    const r = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    const role = r.rows[0]?.role;
+    if (role === 'admin' || role === 'manager') {
+      next();
+    } else {
+      res.status(403).json({ error: 'Privileged access required' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error checking user role' });
+  }
+};
+
+
 /* ---- Utility: Paystack HTTPS request ---- */
 function paystackReq(method, endpoint, body) {
   return new Promise((resolve, reject) => {
@@ -43,7 +95,33 @@ function paystackReq(method, endpoint, body) {
   });
 }
 
-/* ==== TEST ==== */
+/* ==== TEST // ---- Analytics (Demo Data Included for Wow Factor) ----
+app.get('/api/admin/analytics', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    // 1. Revenue last 7 days (Mock for Demo)
+    const revenueHistory = [
+      { date: 'Mon', amount: 12000 },
+      { date: 'Tue', amount: 15400 },
+      { date: 'Wed', amount: 9800 },
+      { date: 'Thu', amount: 21000 },
+      { date: 'Fri', amount: 18200 },
+      { date: 'Sat', amount: 5500 },
+      { date: 'Sun', amount: 28000 }
+    ];
+
+    // 2. Booking Status Distribution
+    const statusRes = await pool.query('SELECT status, COUNT(*) FROM bookings GROUP BY status');
+    
+    res.json({
+      revenueHistory,
+      statusDistribution: statusRes.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Health Check
+app.get('/health', (req, res) => res.send('OK'));
+
 app.get('/test-db', async (req, res) => {
   try   { res.json(await pool.query('SELECT NOW()')); }
   catch { res.status(500).json({ error: 'DB error'}); }
@@ -84,6 +162,46 @@ app.get('/hostels/:id/reviews', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* ==== ADMIN/MANAGER CRUD: HOSTELS ==== */
+app.post('/hostels', authenticateToken, isAdmin, async (req, res) => {
+  const { name, location, description, type, gender, price_per_semester, amenities, image_urls, latitude, longitude, manager_id } = req.body;
+  try {
+    const r = await pool.query(
+      'INSERT INTO hostels (name, location, description, type, gender, price_per_semester, amenities, image_urls, latitude, longitude, manager_id) ' +
+      'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+      [name, location, description, type, gender, price_per_semester, JSON.stringify(amenities || []), JSON.stringify(image_urls || {}), latitude, longitude, manager_id || null]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/hostels/:id', authenticateToken, isAdminOrManager, async (req, res) => {
+  const { id } = req.params;
+  const { name, location, description, type, gender, price_per_semester, amenities, image_urls, latitude, longitude, manager_id } = req.body;
+  try {
+    // If manager, verify ownership
+    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    if (check.rows[0].role === 'manager') {
+       const ownership = await pool.query('SELECT manager_id FROM hostels WHERE id=$1', [id]);
+       if (ownership.rows[0]?.manager_id !== req.user.id) return res.status(403).json({ error: 'You do not manage this hostel' });
+    }
+
+    const r = await pool.query(
+      'UPDATE hostels SET name=$1, location=$2, description=$3, type=$4, gender=$5, price_per_semester=$6, amenities=$7, image_urls=$8, latitude=$9, longitude=$10, manager_id=$11 ' +
+      'WHERE id=$12 RETURNING *',
+      [name, location, description, type, gender, price_per_semester, JSON.stringify(amenities || []), JSON.stringify(image_urls || {}), latitude, longitude, manager_id || null, id]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/hostels/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM hostels WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Hostel deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /* ==== ROOMS ==== */
 app.get('/rooms/:hostelId', async (req, res) => {
   try {
@@ -92,6 +210,25 @@ app.get('/rooms/:hostelId', async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) { res.status(500).json({ error: 'Error fetching rooms' }); }
+});
+
+/* ==== ADMIN CRUD: ROOMS ==== */
+app.post('/rooms', authenticateToken, isAdmin, async (req, res) => {
+  const { hostel_id, room_number, room_type, is_available } = req.body;
+  try {
+    const r = await pool.query(
+      'INSERT INTO rooms (hostel_id, room_number, room_type, is_available) VALUES ($1,$2,$3,$4) RETURNING *',
+      [hostel_id, room_number, room_type, is_available === undefined ? true : is_available]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/rooms/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM rooms WHERE id=$1', [req.params.id]);
+    res.json({ message: 'Room deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 /* ==== BOOKINGS ==== */
@@ -151,39 +288,173 @@ app.patch('/bookings/:bookingId/cancel', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Error cancelling booking' }); }
 });
 
-/* ==== CHAT ==== */
-// Get messages between a student and a hostel
-app.get('/chat/:hostelId', async (req, res) => {
-  const { hostelId } = req.params;
-  const { user_id }  = req.query;
-  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+/* ==== ADMIN/MANAGER: BOOKINGS & STATS ==== */
+app.get('/admin/bookings', authenticateToken, isManager, async (req, res) => {
   try {
-    const r = await pool.query(
-      'SELECT * FROM chat_messages WHERE hostel_id=$1 AND user_id=$2 ORDER BY created_at ASC LIMIT 100',
-      [hostelId, user_id]
-    );
+    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    let query = 'SELECT b.*, u.first_name, u.last_name, u.email as user_email, h.name as hostel_name, r.room_number ' +
+                'FROM bookings b ' +
+                'JOIN users u ON u.id = b.user_id ' +
+                'LEFT JOIN rooms r ON r.id = b.room_id ' +
+                'LEFT JOIN hostels h ON h.id = r.hostel_id ';
+    let params = [];
+
+    if (check.rows[0].role === 'manager') {
+      query += 'WHERE h.manager_id = $1 ';
+      params.push(req.user.id);
+    }
+    
+    query += 'ORDER BY b.created_at DESC';
+    const r = await pool.query(query, params);
     res.json(r.rows);
-  } catch (err) {
-    console.error('❌ GET /chat:', err.message);
-    res.json([]);
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Send a message (student or admin)
-app.post('/chat', async (req, res) => {
-  const { user_id, hostel_id, message, sender } = req.body;
-  if (!user_id || !hostel_id || !message)
-    return res.status(400).json({ error: 'user_id, hostel_id, message required' });
+app.patch('/admin/bookings/:id/status', authenticateToken, isManager, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const r = await pool.query('UPDATE bookings SET status=$1 WHERE id=$2 RETURNING *', [status, id]);
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/admin/stats', authenticateToken, isManager, async (req, res) => {
+  try {
+    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    const isManagerRole = check.rows[0].role === 'manager';
+    
+    let hostelsQ = 'SELECT COUNT(*) FROM hostels';
+    let usersQ = 'SELECT COUNT(*) FROM users WHERE role=\'student\'';
+    let bookingsQ = 'SELECT COUNT(*) FROM bookings';
+    let revenueQ = 'SELECT SUM(amount_paid) FROM bookings WHERE payment_status=\'paid\'';
+    let params = [];
+
+    if (isManagerRole) {
+      hostelsQ += ' WHERE manager_id = $1';
+      bookingsQ = 'SELECT COUNT(*) FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE h.manager_id = $1';
+      revenueQ = 'SELECT SUM(amount_paid) FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE b.payment_status=\'paid\' AND h.manager_id = $1';
+      params.push(req.user.id);
+    }
+
+    const hostels = await pool.query(hostelsQ, params);
+    const users   = await pool.query(usersQ);
+    const bookings = await pool.query(bookingsQ, params);
+    const revenue  = await pool.query(revenueQ, params);
+    
+    res.json({
+      totalHostels: parseInt(hostels.rows[0].count),
+      totalStudents: parseInt(users.rows[0].count),
+      totalBookings: parseInt(bookings.rows[0].count),
+      totalRevenue: parseFloat(revenue.rows[0].sum || 0)
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ==== NOTIFICATIONS ==== */
+app.get('/notifications', authenticateToken, async (req, res) => {
   try {
     const r = await pool.query(
-      'INSERT INTO chat_messages (user_id,hostel_id,sender,message) VALUES ($1,$2,$3,$4) RETURNING *',
-      [user_id, hostel_id, sender || 'student', message.trim()]
+      'SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 10',
+      [req.user.id]
     );
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE notifications SET is_read=TRUE WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    res.json({ message: 'Marked as read' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ==== WAITLIST ==== */
+app.post('/waitlist/join', authenticateToken, async (req, res) => {
+  const { hostel_id } = req.body;
+  const user_id = req.user.id;
+  try {
+     const exists = await pool.query('SELECT * FROM waitlist WHERE user_id=$1 AND hostel_id=$2 AND status=\'active\'', [user_id, hostel_id]);
+     if (exists.rows.length) return res.status(409).json({ error: 'You are already on the waitlist for this hostel' });
+     
+     await pool.query('INSERT INTO waitlist (user_id, hostel_id) VALUES ($1,$2)', [user_id, hostel_id]);
+     res.status(201).json({ message: 'Successfully joined the waitlist!' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/admin/waitlist/:hostelId', authenticateToken, isManager, async (req, res) => {
+  try {
+     const r = await pool.query(
+       'SELECT w.*, u.first_name, u.last_name, u.email FROM waitlist w ' +
+       'JOIN users u ON u.id = w.user_id ' +
+       'WHERE w.hostel_id = $1 ORDER BY w.created_at ASC',
+       [req.params.hostelId]
+     );
+     res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});app.get('/admin/users', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, first_name, last_name, email, role, created_at FROM users ORDER BY created_at DESC');
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ==== CHAT ==== */
+// Get messages between two users for a hostel
+app.get('/chat/:hostelId', authenticateToken, async (req, res) => {
+  const { hostelId } = req.params;
+  const { other_id }  = req.query; // If manager is viewing, this is student_id. If student is viewing, it's irrelevant (receiver is manager).
+  const myId = req.user.id;
+  
+  try {
+    const r = await pool.query(
+      'SELECT * FROM chat_messages WHERE hostel_id=$1 AND ( (sender_id=$2 AND receiver_id=$3) OR (sender_id=$3 AND receiver_id=$2) ) ORDER BY created_at ASC',
+      [hostelId, myId, other_id]
+    );
+    res.json(r.rows);
+  } catch (err) { res.json([]); }
+});
+
+// Manager Chat List: Grouped by Student
+app.get('/admin/chat/grouped', authenticateToken, isManager, async (req, res) => {
+  try {
+    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    let query = 'SELECT DISTINCT ON (c.sender_id, c.hostel_id) c.*, u.first_name, u.last_name, h.name as hostel_name ' +
+                'FROM chat_messages c ' +
+                'JOIN users u ON u.id = c.sender_id ' +
+                'JOIN hostels h ON h.id = c.hostel_id ';
+    let params = [];
+    if (check.rows[0].role === 'manager') {
+       query += 'WHERE h.manager_id = $1 ';
+       params.push(req.user.id);
+    }
+    query += 'ORDER BY c.sender_id, c.hostel_id, c.created_at DESC';
+    const r = await pool.query(query, params);
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Send a message
+app.post('/chat', authenticateToken, async (req, res) => {
+  const { hostel_id, message, receiver_id } = req.body;
+  const sender_id = req.user.id;
+
+  try {
+    // 1. Save Message
+    const r = await pool.query(
+      'INSERT INTO chat_messages (sender_id, receiver_id, hostel_id, message) VALUES ($1,$2,$3,$4) RETURNING *',
+      [sender_id, receiver_id, hostel_id, message.trim()]
+    );
+    
+    // 2. Notify Receiver
+    const sender = await pool.query('SELECT first_name FROM users WHERE id=$1', [sender_id]);
+    await pool.query(
+      'INSERT INTO notifications (user_id, type, message, target_url) VALUES ($1, \'chat\', $2, $3)',
+      [receiver_id, `New message from ${sender.rows[0].first_name}`, '/pages/hostel-list.html']
+    );
+
     res.status(201).json(r.rows[0]);
-  } catch (err) {
-    console.error('❌ POST /chat:', err.message);
-    res.status(500).json({ error: 'Failed to send message' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Failed to send message' }); }
 });
 
 /* ==== PAYSTACK PAYMENT ==== */
@@ -264,7 +535,13 @@ app.post('/register', async (req, res) => {
     );
     const user  = r.rows[0];
     const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: '7d' });
-    res.status(201).json({ message: 'Registered successfully', token, user_id: user.id, name: user.first_name + ' ' + user.last_name });
+    res.status(201).json({ 
+      message: 'Registered successfully', 
+      token, 
+      user_id: user.id, 
+      name: user.first_name + ' ' + user.last_name,
+      role: 'student'
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Registration failed' });
@@ -281,7 +558,13 @@ app.post('/login', async (req, res) => {
     const ok   = await bcrypt.compare(password, user.password);
     if (!ok)   return res.status(401).json({ error: 'Invalid email or password' });
     const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: '7d' });
-    res.json({ message: 'Login successful', token, user_id: user.id, name: user.first_name + ' ' + (user.last_name || '') });
+    res.json({ 
+      message: 'Login successful', 
+      token, 
+      user_id: user.id, 
+      name: user.first_name + ' ' + (user.last_name || ''),
+      role: user.role || 'student'
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });

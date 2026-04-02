@@ -7,7 +7,11 @@ var currentAmount   = 0;
 var currentRoomLabel = '';
 var selectedMethod  = null;
 
-/* ---- Init ---- */
+/* ---- Gallery State ---- */
+var galleryData = { rooms: [], washrooms: [], kitchens: [] };
+var galleryCategory = 'rooms';
+var galleryIdx = 0;
+
 document.addEventListener('DOMContentLoaded', function () {
   // Allow exploration but require auth for sensitive routes
   if (window.location.pathname.includes('dashboard') || window.location.pathname.includes('booking')) {
@@ -22,6 +26,12 @@ document.addEventListener('DOMContentLoaded', function () {
   if (searchInput)  searchInput.addEventListener('input',  filterHostels);
   if (typeFilter)   typeFilter.addEventListener('change',  filterHostels);
   if (genderFilter) genderFilter.addEventListener('change', filterHostels);
+
+  // Map Toggle
+  var mapToggleBtn = document.getElementById('map-toggle-btn');
+  if (mapToggleBtn) {
+    mapToggleBtn.addEventListener('click', toggleMapView);
+  }
 
   // Close rooms modal when clicking backdrop
   var overlay = document.getElementById('rooms-modal');
@@ -68,6 +78,11 @@ function renderHostels(hostels) {
     return;
   }
   grid.innerHTML = hostels.map(function (h, i) {
+    return renderHostelCard(h, i);
+  }).join('');
+}
+
+function renderHostelCard(h, i) {
     var rooms     = parseInt(h.available_rooms) || 0;
     var available = rooms > 0;
 
@@ -98,12 +113,13 @@ function renderHostels(hostels) {
     // Build image gallery strip
     var allImgs = [...(images.rooms||[]), ...(images.washrooms||[]), ...(images.kitchens||[])];
     var galleryHtml = allImgs.length > 0 
-      ? '<div class="hostel-gallery-strip">' + allImgs.slice(1,4).map(img => `<a href="${img}" target="_blank"><img src="${img}" alt="Hostel Image" /></a>`).join('') + '</div>'
+      ? '<div class="hostel-gallery-strip">' + allImgs.slice(1,4).map(img => `<img src="${img}" alt="Hostel" onclick="openGallery(${h.id})" />`).join('') + '</div>'
       : '';
 
     return '<div class="hostel-card">'
-      + '<div class="hostel-img" style="background:' + (allImgs.length ? `url('${allImgs[0]}') center/cover` : GRADIENTS[i % GRADIENTS.length]) + '">'
+      + '<div class="hostel-img" style="cursor:pointer; background:' + (allImgs.length ? `url('${allImgs[0]}') center/cover` : GRADIENTS[i % GRADIENTS.length]) + '" onclick="openGallery(' + h.id + ')">'
         + (!allImgs.length ? '<span style="font-size:3rem">🏠</span>' : '')
+        + (allImgs.length ? '<div class="gallery-badge"><span class="icon">🔍</span> View Gallery</div>' : '')
         + '<span class="hostel-badge ' + (available ? 'available' : 'full') + '">'
           + (available ? rooms + ' room' + (rooms > 1 ? 's' : '') + ' left' : 'Fully Booked')
         + '</span>'
@@ -111,24 +127,22 @@ function renderHostels(hostels) {
       + '<div class="hostel-info">'
         + '<div style="display:flex; justify-content:space-between; align-items:flex-start;">'
           + '<div class="hostel-name">' + h.name + '</div>'
-          + '<div class="hostel-rating">★ ' + Number(h.rating || 0).toFixed(1) + '</div>'
         + '</div>'
-        + '<div class="hostel-meta">'
-          + '<span class="hostel-tag">📍 ' + (h.location || 'On Campus') + '</span>'
-          + '<span class="hostel-tag">' + cap(h.gender || 'Mixed') + '</span>'
-          + '<span class="hostel-tag">' + cap(h.type || 'Standard') + '</span>'
-        + '</div>'
-        + amenityHtml
+        + '<div class="hostel-type">' + cap(h.type || 'Standard') + ' • ' + cap(h.gender || 'Mixed') + '</div>'
+        + '<div class="hostel-location">📍 ' + (h.location || 'N/A') + '</div>'
         + galleryHtml
+        + amenityHtml
         + '<div class="hostel-price">GH&#8373; ' + Number(h.price_per_semester || 0).toLocaleString() + ' <span>/ semester</span></div>'
         + contact
-        + '<button class="btn btn-primary btn-full" style="margin-top:.75rem"'
-          + (available ? ' onclick="checkAuthAndBook(' + h.id + ')"' : ' disabled')
-          + '>' + (available ? '🔑 View &amp; Book Rooms' : '❌ Fully Booked') + '</button>'
-      + '</div>'
-    + '</div>';
-  }).join('');
+        + (available 
+            ? `<button class="btn btn-primary btn-full" onclick="viewRooms(${h.id})">🔑 View & Book Rooms</button>`
+            : `<button class="btn btn-outline btn-full" onclick="joinWaitlist(${h.id})">⏳ Join Waitlist</button>`
+          )
+        + `<button class="btn btn-outline btn-full" style="margin-top:0.5rem" onclick="openChatWithManager(${h.id}, '${h.name}')">💬 Chat with Manager</button>`
+        + '</div>'
+      + '</div>';
 }
+
 
 function filterHostels() {
   var q      = (document.getElementById('search-input')  || {}).value || '';
@@ -164,8 +178,37 @@ async function viewRooms(hostelId) {
   var modal  = document.getElementById('rooms-modal');
   var tbody  = document.getElementById('rooms-tbody');
   var rContainer = document.getElementById('reviews-container');
+  var section = document.getElementById('modal-gallery-section');
+  var mainImg = document.getElementById('gallery-main-img');
+  
   var hostel = allHostels.find(function (h) { return h.id == hostelId; });
-  if (hostel) document.getElementById('modal-hostel-name').textContent = hostel.name;
+  
+  if (hostel) {
+    document.getElementById('modal-hostel-name').textContent = hostel.name;
+    
+    // Parse images
+    try { 
+      galleryData = typeof hostel.image_urls === 'string' ? JSON.parse(hostel.image_urls) : (hostel.image_urls || { rooms: [], washrooms: [], kitchens: [] }); 
+    } catch(e) {
+      galleryData = { rooms: [], washrooms: [], kitchens: [] };
+    }
+
+    // Default to first category with images
+    galleryCategory = 'rooms';
+    if (!galleryData.rooms?.length) {
+      if (galleryData.kitchens?.length) galleryCategory = 'kitchens';
+      else if (galleryData.washrooms?.length) galleryCategory = 'washrooms';
+    }
+    
+    galleryIdx = 0;
+    updateGalleryUI();
+
+    if (section) {
+      var hasAny = (galleryData.rooms?.length || galleryData.kitchens?.length || galleryData.washrooms?.length);
+      section.style.display = hasAny ? 'block' : 'none';
+    }
+  }
+
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.5rem"><div class="spinner" style="margin:0 auto"></div></td></tr>';
   if (rContainer) rContainer.innerHTML = '<div style="text-align:center"><div class="spinner"></div></div>';
   modal.classList.add('open');
@@ -187,7 +230,7 @@ async function viewRooms(hostelId) {
           + '<td><span class="badge ' + (r.is_available ? 'badge-success' : 'badge-danger') + '">'
               + (r.is_available ? '✅ Available' : '❌ Booked') + '</span></td>'
           + '<td>' + (r.is_available
-              ? '<button class="btn btn-primary btn-sm" onclick="showConfirm(' + r.id + ",'" + num + "','" + rtype + "'," + price + ')">Book</button>'
+              ? '<button class="btn btn-primary btn-sm" onclick="handleBookClick(' + r.id + ",'" + num + "','" + rtype + "'," + price + ')">Book</button>'
               : '—')
           + '</td>'
         + '</tr>';
@@ -205,12 +248,12 @@ async function viewRooms(hostelId) {
         rContainer.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;margin-top:.5rem">No reviews yet for this hostel.</p>';
       } else {
         rContainer.innerHTML = reviews.map(function(rev) {
-          return '<div style="border-bottom:1px solid #e2e8f0; padding:.75rem 0;">'
-            + '<div style="display:flex; justify-content:space-between; align-items:center;">'
-              + '<strong>' + rev.user_name + '</strong>'
-              + '<span style="color:#fbbf24; font-size:.85rem">★ ' + rev.rating + '/5</span>'
+          return '<div class="review-item">'
+            + '<div class="review-header">'
+              + '<span class="review-user">' + rev.user_name + '</span>'
+              + '<span class="review-stars">★ ' + rev.rating + '/5</span>'
             + '</div>'
-            + '<p style="font-size:.85rem; color:var(--text-muted); margin-top:.25rem">' + (rev.comment || '') + '</p>'
+            + '<div class="review-text">' + (rev.comment || '') + '</div>'
           + '</div>';
         }).join('');
       }
@@ -218,6 +261,54 @@ async function viewRooms(hostelId) {
       rContainer.innerHTML = '<p style="color:red;font-size:.85rem">Failed to load reviews.</p>';
     }
   }
+}
+function switchGalleryTab(cat) {
+  galleryCategory = cat;
+  galleryIdx = 0;
+  updateGalleryUI();
+  
+  // Update buttons
+  document.querySelectorAll('.gallery-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(cat.slice(0,-1)) || btn.textContent.toLowerCase() === cat);
+  });
+}
+
+function updateGalleryUI() {
+  var imgs = galleryData[galleryCategory] || [];
+  var mainImg = document.getElementById('gallery-main-img');
+  var curIdxEl = document.getElementById('gallery-current-idx');
+  var totalEl = document.getElementById('gallery-total-count');
+  
+  if (!imgs.length) {
+    if (mainImg) {
+      mainImg.src = '';
+      mainImg.style.display = 'none';
+    }
+    if (curIdxEl) curIdxEl.textContent = '0';
+    if (totalEl) totalEl.textContent = '0';
+    return;
+  }
+
+  if (mainImg) {
+    mainImg.src = imgs[galleryIdx];
+    mainImg.style.display = 'block';
+  }
+  if (curIdxEl) curIdxEl.textContent = galleryIdx + 1;
+  if (totalEl) totalEl.textContent = imgs.length;
+}
+
+function nextGalleryImage() {
+  var imgs = galleryData[galleryCategory] || [];
+  if (!imgs.length) return;
+  galleryIdx = (galleryIdx + 1) % imgs.length;
+  updateGalleryUI();
+}
+
+function prevGalleryImage() {
+  var imgs = galleryData[galleryCategory] || [];
+  if (!imgs.length) return;
+  galleryIdx = (galleryIdx - 1 + imgs.length) % imgs.length;
+  updateGalleryUI();
 }
 
 function closeRoomsModal() {
@@ -229,6 +320,19 @@ function closeRoomsModal() {
 /* ================================================================
    INLINE CONFIRM → opens Payment Modal
    ================================================================ */
+function handleBookClick(roomId, roomNumber, roomType, price) {
+  console.log('Book clicked:', { roomId, roomNumber, roomType, price });
+  showConfirm(roomId, roomNumber, roomType, price);
+  
+  // Auto-scroll to the bottom of the modal body to show the confirm bar
+  const modalBody = document.querySelector('.modal-body');
+  if (modalBody) {
+    setTimeout(() => {
+      modalBody.scrollTo({ top: modalBody.scrollHeight, behavior: 'smooth' });
+    }, 100);
+  }
+}
+
 function showConfirm(roomId, roomNumber, roomType, price) {
   var bar    = document.getElementById('modal-confirm-bar');
   var normal = document.getElementById('modal-footer-normal');
@@ -452,3 +556,158 @@ function printReceipt() {
 var PAYSTACK_PUBLIC_KEY = 'pk_test_YOUR_PUBLIC_KEY_HERE';
 
 function cap(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+
+/* ================================================================
+   WAITLIST LOGIC
+   ================================================================ */
+async function joinWaitlist(hostelId) {
+  if (!isLoggedIn()) {
+    showToast('Please log in to join the waitlist', 'warning');
+    setTimeout(() => { 
+       const path = window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
+       window.location.href = path;
+    }, 1500);
+    return;
+  }
+  
+  if (!confirm('This hostel is currently full. Would you like to join the waitlist to be notified when a room becomes available?')) return;
+  
+  try {
+    const res = await Waitlist.join(hostelId);
+    showToast(res.message, 'success');
+  } catch (err) {
+    showToast(err.message || 'Failed to join waitlist.', 'error');
+  }
+}
+
+/* ================================================================
+   CHAT WIDGET LOGIC
+   ================================================================ */
+let activeManagerId = null;
+let activeHostelId = null;
+
+async function openChatWithManager(hostelId, hostelName) {
+  if (!isLoggedIn()) {
+    showToast('Please log in to chat', 'warning');
+    return;
+  }
+  
+  try {
+    const h = await apiFetch('/hostels/' + hostelId);
+    activeManagerId = h.manager_id || 1; // Default to admin if no manager
+    activeHostelId = hostelId;
+    
+    document.getElementById('chat-hostel-name').textContent = `Chat: ${hostelName}`;
+    const widget = document.getElementById('chat-widget');
+    if (widget) widget.classList.add('open');
+    
+    // Load existing messages
+    const msgs = await apiFetch(`/chat/${hostelId}?other_id=${activeManagerId}`);
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = '';
+    msgs.forEach(m => appendChatMessage(m.message, m.sender_id == getCurrentUserId() ? 'sent' : 'received'));
+  } catch (e) { showToast('Error opening chat', 'error'); }
+}
+
+function toggleChat() {
+  const widget = document.getElementById('chat-widget');
+  if(!widget) return;
+  widget.classList.toggle('open');
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if(!msg || !activeHostelId || !activeManagerId) return;
+
+  const payload = {
+    hostel_id: activeHostelId,
+    receiver_id: activeManagerId,
+    message: msg
+  };
+
+  try {
+    await apiFetch('/chat', { method: 'POST', body: JSON.stringify(payload) });
+    appendChatMessage(msg, 'sent');
+    input.value = '';
+  } catch(e) { showToast('Message failed to send', 'error'); }
+}
+
+function appendChatMessage(text, type) {
+  const container = document.getElementById('chat-messages');
+  if(!container) return;
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ---- PREMIUM GALLERY (LIGHTBOX) ----
+let currentGalleryImages = [];
+let currentGalleryIndex = 0;
+
+function openGallery(hostelId) {
+  const h = allHostels.find(x => x.id === hostelId);
+  if (!h) return;
+
+  const images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : (h.image_urls || {});
+  currentGalleryImages = [...(images.rooms||[]), ...(images.washrooms||[]), ...(images.kitchens||[])];
+  
+  if (!currentGalleryImages.length) {
+    showToast("No images available for this hostel", "info");
+    return;
+  }
+
+  // Ensure Lightbox HTML exists
+  if (!document.getElementById('gallery-overlay')) {
+    const overlay = document.createElement('div');
+    overlay.id = 'gallery-overlay';
+    overlay.className = 'gallery-overlay';
+    overlay.innerHTML = `
+      <div class="gallery-close" onclick="closeGallery()">&times;</div>
+      <div class="gallery-main-wrap">
+        <button class="gallery-nav prev" onclick="changeGalleryImage(-1)">❮</button>
+        <img id="gallery-img" src="" alt="Gallery Preview">
+        <button class="gallery-nav next" onclick="changeGalleryImage(1)">❯</button>
+      </div>
+      <div class="gallery-thumbs" id="gallery-thumbs"></div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // Close on click background
+    overlay.addEventListener('click', (e) => {
+      if (e.target.id === 'gallery-overlay') closeGallery();
+    });
+  }
+
+  currentGalleryIndex = 0;
+  showGalleryImage(0);
+  document.getElementById('gallery-overlay').classList.add('open');
+}
+
+function showGalleryImage(index) {
+  const imgEl = document.getElementById('gallery-img');
+  const thumbsEl = document.getElementById('gallery-thumbs');
+  if (!imgEl || !thumbsEl) return;
+
+  currentGalleryIndex = index;
+  imgEl.src = currentGalleryImages[index];
+
+  // Render Thumbnails
+  thumbsEl.innerHTML = currentGalleryImages.map((img, i) => `
+    <img src="${img}" class="gallery-thumb ${i === index ? 'active' : ''}" onclick="showGalleryImage(${i})">
+  `).join('');
+}
+
+function changeGalleryImage(step) {
+  let next = currentGalleryIndex + step;
+  if (next < 0) next = currentGalleryImages.length - 1;
+  if (next >= currentGalleryImages.length) next = 0;
+  showGalleryImage(next);
+}
+
+function closeGallery() {
+  const overlay = document.getElementById('gallery-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
