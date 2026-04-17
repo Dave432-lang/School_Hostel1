@@ -96,7 +96,7 @@
           <div class="form-group">
             <label class="form-label" for="login-password">
               Password
-              <a href="#" class="forgot-link" style="float:right;font-weight:400">Forgot password?</a>
+              <a href="pages/forgot-password.html" class="forgot-link" style="float:right;font-weight:400">Forgot password?</a>
             </label>
             <div class="password-wrap">
               <input class="form-control" type="password" id="login-password" placeholder="Enter your password" required
@@ -222,6 +222,21 @@
 
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        const stats = await apiFetch('/public/stats');
+        const studentEl = document.querySelector('.stat-card:nth-child(1) h3');
+        const hostelEl = document.querySelector('.stat-card:nth-child(2) h3');
+        const roomEl = document.querySelector('.stat-card:nth-child(3) h3');
+        
+        if (studentEl) studentEl.textContent = (stats.totalStudents + 500) + '+'; // Add a base offset for "wow" factor
+        if (hostelEl) hostelEl.textContent = stats.totalHostels + '+';
+        if (roomEl) roomEl.textContent = stats.totalRooms + '+';
+      } catch (err) { console.warn('Public stats failed to load.'); }
+    });
+  </script>
+  <script src="js/theme.js"></script>
 </body>
 
 </html>

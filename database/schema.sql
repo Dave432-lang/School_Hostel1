@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
   year_of_study VARCHAR(20),
   email      VARCHAR(255) NOT NULL UNIQUE,
   password   VARCHAR(255) NOT NULL,
+  role       VARCHAR(20)  DEFAULT 'student',
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

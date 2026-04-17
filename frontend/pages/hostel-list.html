@@ -518,7 +518,7 @@
               </div>
               <div style="flex:1">
                 <label class="form-label" style="font-size:.85rem">CVV</label>
-                <input class="form-control" type="password" placeholder="***" maxlength="4" />
+                <input class="form-control" type="text" placeholder="***" maxlength="4" style="-webkit-text-security: disc;" />
               </div>
             </div>
           </div>
@@ -596,23 +596,27 @@
   </div>
 
   <!-- CHAT WIDGET -->
-  <div class="chat-toggle" id="chat-toggle" title="Chat with Us">💬</div>
+  <div class="chat-toggle" id="chat-toggle" title="Chat with Us" onclick="toggleChatWidget()">💬</div>
   <div class="chat-widget" id="chat-widget">
     <div class="chat-header">
       <div style="display:flex;align-items:center;gap:.5rem">
         <span id="chat-hostel-name">Support Chat</span>
       </div>
-      <button onclick="toggleChat()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.25rem">✕</button>
+      <button onclick="toggleChatWidget()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.25rem">✕</button>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div class="chat-input-area">
       <input type="text" class="form-control" id="chat-input" placeholder="Type a message..." style="font-size:.85rem" />
-      <button class="btn btn-primary" onclick="sendMessage()" style="padding:.5rem .75rem">➤</button>
+      <button class="btn btn-primary" onclick="sendChatMessage()" style="padding:.5rem .75rem">➤</button>
     </div>
   </div>
 
   <div id="toast-container"></div>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
   <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/chat.js"></script>
   <script src="../js/app.js"></script>
+  <script src="../js/theme.js"></script>
 </body>
 </html>

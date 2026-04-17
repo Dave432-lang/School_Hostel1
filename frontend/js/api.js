@@ -1,4 +1,5 @@
 /* api.js — Central API helper. All backend calls go here. */
+const PAYSTACK_PUBLIC_KEY = 'pk_test_YOUR_PUBLIC_KEY_HERE';
 let BASE_URL = 'http://localhost:5000';
 if (window.location.origin.includes('ngrok') || window.location.origin.includes('loca.lt')) {
   BASE_URL = window.location.origin;
@@ -14,11 +15,11 @@ async function apiFetch(endpoint, options) {
     ...(token ? { 'Authorization': 'Bearer ' + token } : {})
   }, options.headers || {});
   
-  const config = Object.assign({}, options, { headers });
+  const config = Object.assign({ credentials: 'include' }, options, { headers });
   try {
     const response = await fetch(BASE_URL + endpoint, config);
     const data = await response.json();
-    if (response.status === 401 && !endpoint.includes('login')) {
+    if ((response.status === 401 || response.status === 403) && !endpoint.includes('login') && !endpoint.includes('register')) {
       logout();
       return;
     }
@@ -28,6 +29,16 @@ async function apiFetch(endpoint, options) {
     console.error('[API Error]', endpoint, err.message);
     throw err;
   }
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 const Auth = {
@@ -206,10 +217,31 @@ function showToast(message, type) {
   setTimeout(() => toast.remove(), 4000);
 }
 
+let socket;
+function initRealtime() {
+  const script = document.createElement('script');
+  script.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js';
+  script.onload = () => {
+    socket = io(BASE_URL);
+    socket.emit('join_user', localStorage.getItem('user_id'));
+    
+    socket.on('new_message', (msg) => {
+      // If chat function is loaded on current page
+      if (typeof appendChatMessage === 'function') appendChatMessage(msg.message, 'received');
+    });
+    
+    socket.on('notification', (payload) => {
+       showToast(payload.message, 'info');
+       checkNotifications(); 
+    });
+  };
+  document.head.appendChild(script);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (isLoggedIn()) {
     checkNotifications();
-    setInterval(checkNotifications, 30000); // Polling every 30s
+    initRealtime();
   }
 });
 

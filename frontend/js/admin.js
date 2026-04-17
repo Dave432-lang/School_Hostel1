@@ -1,8 +1,16 @@
 /* admin.js — Admin Dashboard Logic. Depends on api.js */
 
-document.addEventListener('DOMContentLoaded', function() {
-  // 1. Security Check
-  if (!isAdmin()) {
+document.addEventListener('DOMContentLoaded', async function() {
+  // 1. Security Check via Backend
+  try {
+    const res = await apiFetch('/me');
+    if (!res || !res.user || res.user.role !== 'admin') {
+      localStorage.removeItem('user_role');
+      window.location.href = '../index.html';
+      return;
+    }
+  } catch (err) {
+    localStorage.removeItem('user_role');
     window.location.href = '../index.html';
     return;
   }
@@ -130,11 +138,12 @@ async function loadRecentBookings() {
     }
     tbody.innerHTML = recent.map(b => `
       <tr>
-        <td>${b.first_name} ${b.last_name}</td>
-        <td>${b.hostel_name || 'N/A'}</td>
-        <td>${b.room_number || 'N/A'}</td>
+        <td>${b.id}</td>
+        <td>${esc(b.first_name)} ${esc(b.last_name)}</td>
+        <td>${esc(b.hostel_name)} - Room ${esc(b.room_number)}</td>
+        <td>GH₵ ${Number(b.amount_paid || 0).toLocaleString()}</td>
+        <td><span class="badge badge-${b.status === 'confirmed' ? 'success' : 'warning'}">${esc(b.status)}</span></td>
         <td>${new Date(b.created_at).toLocaleDateString()}</td>
-        <td><span class="status-pill status-${b.status}">${b.status}</span></td>
       </tr>
     `).join('');
   } catch (err) { tbody.innerHTML = '<tr><td colspan="5">Error loading bookings</td></tr>'; }
@@ -245,7 +254,10 @@ async function loadAdminHostelSelect() {
     const hostels = await Hostels.getAll();
     select.innerHTML = '<option value="">Select Hostel to Manage...</option>' + 
       hostels.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
-  } catch (e) {}
+  } catch (e) {
+    console.error('Error loading hostels for select:', e);
+    select.innerHTML = '<option value="">Error loading hostels</option>';
+  }
 }
 
 async function loadRoomsForAdmin() {
@@ -357,13 +369,16 @@ async function loadAllUsers() {
   tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
   try {
     const users = await Admin.getUsers();
-    tbody.innerHTML = users.filter(u => u.role === 'student').map(u => `
-      <tr>
-        <td><strong>${u.first_name} ${u.last_name}</strong></td>
-        <td>${u.email}</td>
+    tbody.innerHTML = users.filter(u => u.role === 'student').map(u => {
+      const row = `<tr>
+        <td>${u.id}</td>
+        <td>${esc(u.first_name)} ${esc(u.last_name)}</td>
+        <td>${esc(u.email)}</td>
+        <td><span class="badge badge-info">${esc(u.role)}</span></td>
         <td>${new Date(u.created_at).toLocaleDateString()}</td>
-      </tr>
-    `).join('');
+      </tr>`;
+      return row;
+    }).join('');
   } catch (err) { tbody.innerHTML = '<tr><td colspan="3">Error loading users</td></tr>'; }
 }
 
@@ -373,3 +388,67 @@ function closeAdminModal(id) {
 }
 
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+/* ---- CSV EXPORT ---- */
+function downloadCSV(csvContent, filename) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+async function exportBookingsCSV() {
+  try {
+    const bookings = await Admin.getBookings();
+    if (!bookings.length) return showToast('No bookings to export', 'error');
+
+    const headers = ['Booking ID', 'Student Name', 'Email', 'Hostel', 'Room', 'Amount Paid', 'Pay Status', 'Booking Status', 'Date Created'];
+    let csv = headers.join(',') + '\n';
+    
+    bookings.forEach(b => {
+      const row = [
+        b.id,
+        `"${(b.first_name || '')} ${(b.last_name || '')}"`,
+        `"${b.user_email || ''}"`,
+        `"${b.hostel_name || ''}"`,
+        `"${b.room_number || ''}"`,
+        b.amount_paid || 0,
+        b.payment_status || 'unpaid',
+        b.status || 'unknown',
+        new Date(b.created_at).toLocaleString()
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    downloadCSV(csv, 'bookings_export.csv');
+    showToast('Bookings downloaded!', 'success');
+  } catch (err) { showToast('Export failed', 'error'); }
+}
+
+async function exportStudentsCSV() {
+  try {
+    const users = await Admin.getUsers();
+    const students = users.filter(u => u.role === 'student');
+    if (!students.length) return showToast('No students to export', 'error');
+
+    const headers = ['Student ID', 'First Name', 'Last Name', 'Email', 'Joined Date'];
+    let csv = headers.join(',') + '\n';
+    
+    students.forEach(u => {
+      const row = [
+        u.id,
+        `"${u.first_name || ''}"`,
+        `"${u.last_name || ''}"`,
+        `"${u.email || ''}"`,
+        new Date(u.created_at).toLocaleString()
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    downloadCSV(csv, 'students_export.csv');
+    showToast('Students downloaded!', 'success');
+  } catch (err) { showToast('Export failed', 'error'); }
+}

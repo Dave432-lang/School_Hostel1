@@ -40,6 +40,15 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
+function toggleMapView() {
+  window.location.href = 'hostel-map.html';
+}
+
+function closeRoomsModal() {
+  var overlay = document.getElementById('rooms-modal');
+  if (overlay) overlay.style.display = 'none';
+}
+
 /* ================================================================
    HOSTEL LIST
    ================================================================ */
@@ -49,6 +58,39 @@ async function loadHostels() {
   grid.innerHTML = '<div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>';
   try {
     allHostels = await Hostels.getAll();
+    
+    // Natively inject the images into the frontend state, severing reliance on the Database images
+    const bedFiles = ['B1.jpg','B2.jpg','B3.jpg','B4.jpg','B5.jpg','b6.jpg','b7.jpg','b8.jpg','b9.jpg','b10.jpg','b11.jpg','b12.jpg','b13.jpg','b14.jpg'];
+    const kitFiles = ['K1.jpg','k2.jpg','k3.jpg','k4.jpg'];
+    const washFiles = ['W1.jpg','w2.jpg','w3.jpg','w4.jpg','w5.jpg','w6.jpg','r1.jpg'];
+    
+    // Distribute categories for testing filters
+    const types = ['premium', 'standard', 'executive'];
+    const genders = ['mixed', 'male', 'female'];
+
+    allHostels = allHostels.map((h, i) => {
+      var currentPhoto = '../src/assets/images/PIC/H' + ((i % 12) + 1) + '.jpg';
+      var bed1 = '../src/assets/images/Pictures/' + bedFiles[(i * 3) % bedFiles.length];
+      var bed2 = '../src/assets/images/Pictures/' + bedFiles[((i * 3)+1) % bedFiles.length];
+      var bed3 = '../src/assets/images/Pictures/' + bedFiles[((i * 3)+2) % bedFiles.length];
+      var kit1 = '../src/assets/images/Pictures/' + kitFiles[(i * 2) % kitFiles.length];
+      var kit2 = '../src/assets/images/Pictures/' + kitFiles[((i * 2)+1) % kitFiles.length];
+      var wash1 = '../src/assets/images/Pictures/' + washFiles[(i * 2) % washFiles.length];
+      var wash2 = '../src/assets/images/Pictures/' + washFiles[((i * 2)+1) % washFiles.length];
+
+      h.image_urls = { 
+        rooms: [currentPhoto, bed1, bed2, bed3], 
+        washrooms: [wash1, wash2], 
+        kitchens: [kit1, kit2] 
+      };
+      
+      // Force assign types and genders symmetrically to populate UI filters
+      h.type = types[i % types.length];
+      h.gender = genders[(i + 1) % genders.length];
+      
+      return h;
+    });
+
     renderHostels(allHostels);
     updateCount(allHostels.length);
   } catch (err) {
@@ -104,9 +146,8 @@ function renderHostelCard(h, i) {
     // Parse amenities and images
     var amenities = [];
     try { amenities = typeof h.amenities === 'string' ? JSON.parse(h.amenities) : (h.amenities || []); } catch(e) {}
-    var images = { rooms: [], washrooms: [], kitchens: [] };
-    try { images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : (h.image_urls || images); } catch(e) {}
-    
+    var images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : (h.image_urls || { rooms: [], washrooms: [], kitchens: [] });
+
     // Build amenity pills
     var amenityHtml = '<div class="amenities-list">' + amenities.slice(0,3).map(a => `<span class="amenity-pill">${a}</span>`).join('') + (amenities.length > 3 ? `<span class="amenity-pill">+${amenities.length-3}</span>` : '') + '</div>';
 
@@ -117,7 +158,7 @@ function renderHostelCard(h, i) {
       : '';
 
     return '<div class="hostel-card">'
-      + '<div class="hostel-img" style="cursor:pointer; background:' + (allImgs.length ? `url('${allImgs[0]}') center/cover` : GRADIENTS[i % GRADIENTS.length]) + '" onclick="openGallery(' + h.id + ')">'
+      + '<div class="hostel-img" style="cursor:pointer; background-color: #f1f5f9; ' + (allImgs.length ? `background-image: url('${allImgs[0]}'); background-size: cover; background-position: center;` : `background: ${GRADIENTS[i % GRADIENTS.length]};`) + '" onclick="openGallery(' + h.id + ')">'
         + (!allImgs.length ? '<span style="font-size:3rem">🏠</span>' : '')
         + (allImgs.length ? '<div class="gallery-badge"><span class="icon">🔍</span> View Gallery</div>' : '')
         + '<span class="hostel-badge ' + (available ? 'available' : 'full') + '">'
@@ -551,9 +592,8 @@ function printReceipt() {
   setTimeout(function() { win.print(); }, 250);
 }
 
-// Paystack public key — replace with your real key from paystack.com/dashboard
-// For testing, use: pk_test_xxxxxxxxxxxxxxxxxxxxxxxx
-var PAYSTACK_PUBLIC_KEY = 'pk_test_YOUR_PUBLIC_KEY_HERE';
+// Paystack public key is now centralized in api.js
+// var PAYSTACK_PUBLIC_KEY = ... 
 
 function cap(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
 
@@ -580,68 +620,7 @@ async function joinWaitlist(hostelId) {
   }
 }
 
-/* ================================================================
-   CHAT WIDGET LOGIC
-   ================================================================ */
-let activeManagerId = null;
-let activeHostelId = null;
 
-async function openChatWithManager(hostelId, hostelName) {
-  if (!isLoggedIn()) {
-    showToast('Please log in to chat', 'warning');
-    return;
-  }
-  
-  try {
-    const h = await apiFetch('/hostels/' + hostelId);
-    activeManagerId = h.manager_id || 1; // Default to admin if no manager
-    activeHostelId = hostelId;
-    
-    document.getElementById('chat-hostel-name').textContent = `Chat: ${hostelName}`;
-    const widget = document.getElementById('chat-widget');
-    if (widget) widget.classList.add('open');
-    
-    // Load existing messages
-    const msgs = await apiFetch(`/chat/${hostelId}?other_id=${activeManagerId}`);
-    const container = document.getElementById('chat-messages');
-    container.innerHTML = '';
-    msgs.forEach(m => appendChatMessage(m.message, m.sender_id == getCurrentUserId() ? 'sent' : 'received'));
-  } catch (e) { showToast('Error opening chat', 'error'); }
-}
-
-function toggleChat() {
-  const widget = document.getElementById('chat-widget');
-  if(!widget) return;
-  widget.classList.toggle('open');
-}
-
-async function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const msg = input.value.trim();
-  if(!msg || !activeHostelId || !activeManagerId) return;
-
-  const payload = {
-    hostel_id: activeHostelId,
-    receiver_id: activeManagerId,
-    message: msg
-  };
-
-  try {
-    await apiFetch('/chat', { method: 'POST', body: JSON.stringify(payload) });
-    appendChatMessage(msg, 'sent');
-    input.value = '';
-  } catch(e) { showToast('Message failed to send', 'error'); }
-}
-
-function appendChatMessage(text, type) {
-  const container = document.getElementById('chat-messages');
-  if(!container) return;
-  const div = document.createElement('div');
-  div.className = `message ${type}`;
-  div.textContent = text;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
 
 // ---- PREMIUM GALLERY (LIGHTBOX) ----
 let currentGalleryImages = [];
@@ -651,7 +630,7 @@ function openGallery(hostelId) {
   const h = allHostels.find(x => x.id === hostelId);
   if (!h) return;
 
-  const images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : (h.image_urls || {});
+  const images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : (h.image_urls || {rooms: [], washrooms: [], kitchens: []});
   currentGalleryImages = [...(images.rooms||[]), ...(images.washrooms||[]), ...(images.kitchens||[])];
   
   if (!currentGalleryImages.length) {

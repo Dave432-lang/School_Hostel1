@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +8,7 @@
   <link rel="stylesheet" href="../css/style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+
 <body>
 
   <!-- NAVBAR -->
@@ -42,19 +44,31 @@
     <div class="stat-grid" style="margin-bottom:1.75rem">
       <div class="stat-card">
         <div class="stat-icon blue">📋</div>
-        <div><div class="stat-value" id="count-total">—</div><div class="stat-label">Total</div></div>
+        <div>
+          <div class="stat-value" id="count-total">—</div>
+          <div class="stat-label">Total</div>
+        </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon green">✅</div>
-        <div><div class="stat-value" id="count-confirmed">—</div><div class="stat-label">Confirmed</div></div>
+        <div>
+          <div class="stat-value" id="count-confirmed">—</div>
+          <div class="stat-label">Confirmed</div>
+        </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon amber">⏳</div>
-        <div><div class="stat-value" id="count-pending">—</div><div class="stat-label">Pending</div></div>
+        <div>
+          <div class="stat-value" id="count-pending">—</div>
+          <div class="stat-label">Pending</div>
+        </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon red">❌</div>
-        <div><div class="stat-value" id="count-cancelled">—</div><div class="stat-label">Cancelled</div></div>
+        <div>
+          <div class="stat-value" id="count-cancelled">—</div>
+          <div class="stat-label">Cancelled</div>
+        </div>
       </div>
     </div>
 
@@ -86,9 +100,11 @@
             </tr>
           </thead>
           <tbody id="bookings-tbody">
-            <tr><td colspan="7" style="text-align:center;padding:2rem">
-              <div class="spinner" style="margin:0 auto"></div>
-            </td></tr>
+            <tr>
+              <td colspan="7" style="text-align:center;padding:2rem">
+                <div class="spinner" style="margin:0 auto"></div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -101,5 +117,7 @@
   <script src="../js/api.js"></script>
   <script src="../js/booking.js"></script>
   <script src="../js/chat.js"></script>
+  <script src="../js/theme.js"></script>
 </body>
+
 </html>

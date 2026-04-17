@@ -2,7 +2,7 @@ const pool = require('./config/dbConfig');
 
 const images = {
   rooms: [
-    'https://images.unsplash.com/photo-1555854811-822427f1cfbb?q=80&w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1522771731478-4422258aa314?q=80&w=1000&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?q=80&w=1000&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1540518614846-7eded433c457?q=80&w=1000&auto=format&fit=crop'
   ],

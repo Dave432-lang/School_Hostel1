@@ -1,18 +1,5 @@
 /* auth.js — Login and Register page logic. Depends on api.js */
 
-// Compute base path so redirects work under both Live Server and Express.
-// e.g.  Live Server: http://127.0.0.1:5500/frontend/  → 'pages/dashboard.html'
-//        Express:     http://localhost:5000/            → 'pages/dashboard.html'
-function dashboardURL() {
-  const role = localStorage.getItem('user_role');
-  const path = window.location.pathname;
-  const isInPages = path.includes('/pages/');
-  const base = isInPages ? './' : 'pages/';
-  
-  if (role === 'admin') return base + 'admin.html';
-  return base + 'dashboard.html';
-}
-
 document.addEventListener('DOMContentLoaded', function () {
 
   // Auto-redirect to dashboard ONLY if we are on the login page (index.html)

@@ -1,10 +1,17 @@
 document.addEventListener('DOMContentLoaded', async function() {
-  requireAuth();
-  
-  const role = getCurrentUserRole();
-  if (role !== 'manager' && role !== 'admin') {
-     window.location.href = '../index.html';
-     return;
+  let role;
+  try {
+    const res = await apiFetch('/me');
+    if (!res || !res.user || (res.user.role !== 'manager' && res.user.role !== 'admin')) {
+      localStorage.removeItem('user_role');
+      window.location.href = '../index.html';
+      return;
+    }
+    role = res.user.role;
+  } catch (err) {
+    localStorage.removeItem('user_role');
+    window.location.href = '../index.html';
+    return;
   }
 
   document.getElementById('m-name').textContent = getCurrentUserName();
@@ -16,12 +23,12 @@ document.addEventListener('DOMContentLoaded', async function() {
   await loadGroupedChats();
 });
 
-function showTab(tab) {
+function showTab(tab, el) {
   document.getElementById('tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
   document.getElementById('tab-messages').style.display = tab === 'messages' ? 'block' : 'none';
   
-  document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  document.querySelectorAll('.menu-item').forEach(e => e.classList.remove('active'));
+  if (el) el.classList.add('active');
 }
 
 /* ---- Message Center Logic ---- */

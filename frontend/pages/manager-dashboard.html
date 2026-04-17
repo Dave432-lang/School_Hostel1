@@ -46,8 +46,8 @@
         <span class="logo-text">Manager<span>Portal</span></span>
       </div>
       <nav class="sidebar-menu">
-        <a href="#" class="menu-item active" onclick="showTab('overview')">📊 Overview</a>
-        <a href="#" class="menu-item" onclick="showTab('messages')">💬 Messages</a>
+        <a href="#" class="menu-item active" onclick="showTab('overview', this)">📊 Overview</a>
+        <a href="#" class="menu-item" onclick="showTab('messages', this)">💬 Messages</a>
         <a href="hostel-list.html" class="menu-item">🏢 My Hostels</a>
         <a href="hostel-map.html" class="menu-item">🗺️ Map View</a>
         <button class="btn btn-outline btn-full" style="margin-top:2rem" onclick="logout()">Logout</button>
@@ -97,7 +97,10 @@
 
         <!-- Recent Bookings Table -->
         <div class="dashboard-card">
-          <h3 style="margin-bottom:1.5rem">Recent Bookings for Your Hostels</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+            <h3 style="margin-bottom:0">Recent Bookings for Your Hostels</h3>
+            <button class="btn btn-outline" onclick="exportBookingsCSV()">📥 Export as CSV</button>
+          </div>
           <div class="table-container">
             <table class="table">
               <thead>
@@ -149,7 +152,7 @@
 
   <script src="../js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="../js/api.js"></script>
   <script src="../js/manager.js"></script>
+  <script src="../js/theme.js"></script>
 </body>
 </html>
