@@ -76,28 +76,26 @@ exports.forgotPassword = async (req, res) => {
     const r = await pool.query('SELECT id, first_name FROM users WHERE email=$1', [email]);
     if (!r.rows.length) return res.status(404).json({ error: 'User not found' });
     
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600000); // 1 hour
+    // Generate secure 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 600000); // 10 minutes
 
-    await pool.query('UPDATE users SET reset_token=$1, reset_token_expires=$2 WHERE id=$3', [token, expires, r.rows[0].id]);
-
-    const origin = req.headers.origin || 'http://localhost:5500';
-    // Note: since it's inside /pages, we map the link exactly to the future frontend file
-    const resetLink = `${origin}/pages/reset-password.html?token=${token}`;
+    await pool.query('UPDATE users SET reset_token=$1, reset_token_expires=$2 WHERE id=$3', [otp, expires, r.rows[0].id]);
 
     const emailSent = await sendEmail(
       email,
-      'Password Reset Request',
-      `<p>Hi ${r.rows[0].first_name},</p><p>You requested a password reset. Click the link below to safely set a new password:</p>
-       <a href="${resetLink}" style="padding:10px 15px;background:#2563eb;color:#fff;text-decoration:none;border-radius:5px;display:inline-block;margin-top:10px;">Reset Password</a>
-       <p style="margin-top:20px;font-size:0.8rem;color:#666;">If you did not request this, you can safely ignore this email.</p>`
+      'Your Secure OTP Code',
+      `<p>Hi ${r.rows[0].first_name},</p>
+       <p>You requested a password reset. Here is your 6-digit secure authentication code. It expires in 10 minutes.</p>
+       <div style="padding:15px;background:#f1f5f9;border-radius:8px;font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;width:200px;margin:20px auto;color:#2563eb;">${otp}</div>
+       <p style="font-size:0.8rem;color:#666;">If you did not make this request, you can safely ignore this message.</p>`
     );
 
     if (emailSent) {
-      res.json({ message: 'Password reset link dispatched to your inbox.' });
+      res.json({ message: 'Security code dispatched to your inbox.' });
     } else {
-      res.json({ message: 'Password reset link sent (console simulation only due to no SMTP config).' });
-      console.log('SIMULATED RESET LINK:', resetLink);
+      res.json({ message: 'OTP visually bypassed (console simulation only due to SMTP config).' });
+      console.log(`\n============================\n🔑 SIMULATED OTP CODE: ${otp}\n============================\n`);
     }
   } catch (err) {
     console.error(err);
@@ -106,12 +104,12 @@ exports.forgotPassword = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
-  const { token, newPassword } = req.body;
-  if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password required.' });
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) return res.status(400).json({ error: 'Email, OTP, and new password are required.' });
   
   try {
-    const r = await pool.query('SELECT id FROM users WHERE reset_token=$1 AND reset_token_expires > NOW()', [token]);
-    if (!r.rows.length) return res.status(400).json({ error: 'Invalid or expired reset token.' });
+    const r = await pool.query('SELECT id FROM users WHERE email=$1 AND reset_token=$2 AND reset_token_expires > NOW()', [email, otp]);
+    if (!r.rows.length) return res.status(400).json({ error: 'Invalid or expired OTP code.' });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await pool.query('UPDATE users SET password=$1, reset_token=NULL, reset_token_expires=NULL WHERE id=$2', [hashedPassword, r.rows[0].id]);
