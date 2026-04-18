@@ -146,6 +146,31 @@
     tr:hover {
       background: #f8fafc;
     }
+
+    @media (max-width: 768px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+        padding-top: calc(var(--nav-h) + 60px);
+      }
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        padding: 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 0.5rem;
+      }
+      .admin-content {
+        margin-left: 0;
+        padding: 1rem;
+      }
+    }
   </style>
 </head>
 

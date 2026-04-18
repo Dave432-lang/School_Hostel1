@@ -56,6 +56,8 @@ async function loadChatMessages() {
 
   try {
     const msgs = await apiFetch(`/chat/${currentChatHostelId}`);
+    if (!msgs || !Array.isArray(msgs)) return;
+    
     container.innerHTML = '';
     msgs.forEach(m => {
       appendChatMessage(m.message, m.sender_id == getCurrentUserId() ? 'sent' : 'received', false);

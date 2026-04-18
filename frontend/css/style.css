@@ -1519,7 +1519,12 @@ tbody tr:hover {
   }
   .navbar-right {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+    flex-wrap: nowrap;
   }
   
   /* Layout Spacing */

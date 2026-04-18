@@ -34,6 +34,24 @@
     }
     .empty-state-mgr svg { width: 120px; height: 120px; margin-bottom: 1.5rem; opacity: 0.2; color: var(--primary); }
     .empty-state-mgr h4 { color: var(--text-main); margin-bottom: 0.5rem; }
+
+    @media (max-width: 768px) {
+      .manager-grid { grid-template-columns: 1fr; }
+      .manager-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+      }
+      .sidebar-menu {
+        flex-direction: row;
+        overflow-x: auto;
+        white-space: nowrap;
+        margin-top: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      .menu-item { padding: 0.5rem 0.75rem; }
+      .manager-main { padding: 1rem; }
+    }
   </style>
 </head>
 <body>
