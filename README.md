@@ -2,38 +2,39 @@
 
 A premium hostel booking and management system built with Node.js, MySQL (XAMPP), and Vanilla JavaScript.
 
-## 🚀 Setup Instructions (Local XAMPP)
+## 🚀 Setup Instructions
 
-Follow these steps to get the project running on your local machine:
+### Option 1: Quick Way (No Installation Required)
+1.  **Download** the `portable-dist` folder from the repository.
+2.  **Start MySQL** in your XAMPP Control Panel.
+3.  **Import** `database_setup_mysql.sql` (found in the folder) into phpMyAdmin.
+4.  **Double-click** `hostel-system.exe` inside the folder.
+5.  Open **[http://localhost:5000](http://localhost:5000)** in your browser.
 
-### 1. Database Setup
-1. Open the **XAMPP Control Panel** and start **Apache** and **MySQL**.
-2. Click the **Admin** button next to MySQL to open **phpMyAdmin** (or go to `http://localhost/phpmyadmin`).
-3. Create a new database named `school_hostel`.
-4. Select the `school_hostel` database, click the **Import** tab, and upload the `backend/database_setup_mysql.sql` file.
+### Option 2: Developer Mode (Running from Source)
+1.  **Clone the Repository:** `git clone https://github.com/Dave432-lang/School_Hostel1.git`
+2.  **Import Database:** Import `backend/database_setup_mysql.sql` into XAMPP MySQL.
+3.  **Backend Setup:**
+    - Navigate to the `backend` folder.
+    - Run `npm install` then `node app.js`.
+4.  **Frontend Hosting:**
+    - Place the project in your XAMPP `htdocs` folder.
+    - Open `http://localhost/School_Hostel1/frontend/index.html` in your browser.
 
-### 2. Backend Setup
-1. Open your terminal in the `backend` folder.
-2. Create a `.env` file by copying `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-3. Update `.env` with your database credentials (default MySQL user is usually `root` with no password).
-4. Install dependencies and start the server:
-   ```bash
-   npm install
-   node app.js
-   ```
+---
 
-### 3. Frontend Hosting
-1. Copy the entire project folder into your XAMPP's `htdocs` directory (e.g., `C:\xampp\htdocs\School_Hostel1`).
-2. Open your browser and navigate to:
-   `http://localhost/School_Hostel1/frontend/index.html`
+## 🔒 Default Login Credentials
 
-## 🛠️ Troubleshooting
-- **Failed to Fetch:** Ensure the Node.js backend is running on port 5000.
-- **Port Conflict:** If port 5000 is in use, change the `PORT` in `backend/app.js` and update `frontend/js/api.js`.
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **Admin** | `executive@school.edu.gh` | `admin123` |
+| **Student** | `student@example.com` | `password123` |
 
-## 🔒 Security
-- Default Admin Email: `executive@school.edu.gh`
-- Default Admin Password: `admin123`
+---
+
+## 🛠️ Features
+- **Modern UI:** Responsive design for all devices.
+- **Real-time Chat:** Integrated support chat for hostels.
+- **Analytics:** Visual data for managers and admins.
+- **Safe Payments:** Paystack integration ready (Test Mode).
+- **Portable:** Standalone Windows executable for easy deployment.
