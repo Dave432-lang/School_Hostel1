@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/dbConfig');
 
@@ -10,20 +10,20 @@ exports.register = async (req, res, next) => {
   if (!first_name || !last_name || !email || !password) return res.status(400).json({ error: 'First name, last name, email and password required' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
   try {
-    const exists = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
+    const exists = await pool.query('SELECT id FROM users WHERE email=?', [email]);
     if (exists.rows.length) return res.status(409).json({ error: 'An account with this email already exists' });
     const hash  = await bcrypt.hash(password, 10);
     const r     = await pool.query(
-      'INSERT INTO users (first_name,last_name,student_id,programme,year_of_study,email,password) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id,first_name,last_name,email', 
+      'INSERT INTO users (first_name,last_name,student_id,programme,year_of_study,email,password) VALUES (?,?,?,?,?,?,?)', 
       [first_name, last_name, student_id, programme, year_of_study, email, hash]
     );
-    const user  = r.rows[0];
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
+    const userId = r.insertId;
+    const token = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ 
       message: 'Registered successfully', 
       token,
-      user_id: user.id, 
-      name: user.first_name + ' ' + user.last_name,
+      user_id: userId, 
+      name: first_name + ' ' + last_name,
       role: 'student'
     });
   } catch (err) {
@@ -36,7 +36,7 @@ exports.login = async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
   try {
-    const r    = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+    const r    = await pool.query('SELECT * FROM users WHERE email=?', [email]);
     const user = r.rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
     const ok   = await bcrypt.compare(password, user.password);
@@ -57,7 +57,7 @@ exports.login = async (req, res, next) => {
 
 exports.getMe = async (req, res, next) => {
   try {
-    const r = await pool.query('SELECT id, first_name, last_name, email, role FROM users WHERE id=$1', [req.user.id]);
+    const r = await pool.query('SELECT id, first_name, last_name, email, role FROM users WHERE id=?', [req.user.id]);
     if (!r.rows.length) return res.status(404).json({ error: 'User not found' });
     res.json({ user: r.rows[0] });
   } catch (err) {
@@ -73,14 +73,14 @@ exports.forgotPassword = async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    const r = await pool.query('SELECT id, first_name FROM users WHERE email=$1', [email]);
+    const r = await pool.query('SELECT id, first_name FROM users WHERE email=?', [email]);
     if (!r.rows.length) return res.status(404).json({ error: 'User not found' });
     
     // Generate secure 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 600000); // 10 minutes
 
-    await pool.query('UPDATE users SET reset_token=$1, reset_token_expires=$2 WHERE id=$3', [otp, expires, r.rows[0].id]);
+    await pool.query('UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?', [otp, expires, r.rows[0].id]);
 
     const emailSent = await sendEmail(
       email,
@@ -108,11 +108,12 @@ exports.resetPassword = async (req, res) => {
   if (!email || !otp || !newPassword) return res.status(400).json({ error: 'Email, OTP, and new password are required.' });
   
   try {
-    const r = await pool.query('SELECT id FROM users WHERE email=$1 AND reset_token=$2 AND reset_token_expires > NOW()', [email, otp]);
+    // MySQL CURRENT_TIMESTAMP and comparison logic
+    const r = await pool.query('SELECT id FROM users WHERE email=? AND reset_token=? AND reset_token_expires > CURRENT_TIMESTAMP', [email, otp]);
     if (!r.rows.length) return res.status(400).json({ error: 'Invalid or expired OTP code.' });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password=$1, reset_token=NULL, reset_token_expires=NULL WHERE id=$2', [hashedPassword, r.rows[0].id]);
+    await pool.query('UPDATE users SET password=?, reset_token=NULL, reset_token_expires=NULL WHERE id=?', [hashedPassword, r.rows[0].id]);
     
     res.json({ message: 'Password successfully reset. You can now log in.' });
   } catch (err) {

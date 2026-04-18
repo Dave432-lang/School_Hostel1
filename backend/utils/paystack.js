@@ -1,6 +1,8 @@
 const https = require('https');
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
-if (!PAYSTACK_SECRET) throw new Error('FATAL ERROR: PAYSTACK_SECRET is not defined in environment variables.');
+if (!PAYSTACK_SECRET) {
+  console.warn('⚠️ WARNING: PAYSTACK_SECRET is not defined. Payment features will be disabled.');
+}
 
 function paystackReq(method, endpoint, body) {
   return new Promise((resolve, reject) => {

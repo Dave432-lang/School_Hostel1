@@ -1,10 +1,12 @@
 /* api.js — Central API helper. All backend calls go here. */
 const PAYSTACK_PUBLIC_KEY = 'pk_test_YOUR_PUBLIC_KEY_HERE';
 let BASE_URL = 'http://localhost:5000';
-if (window.location.origin.includes('ngrok') || window.location.origin.includes('loca.lt')) {
+// If on a tunnel or already on port 5000, use current origin
+if (window.location.origin.includes('ngrok') || window.location.origin.includes('loca.lt') || window.location.port === '5000') {
   BASE_URL = window.location.origin;
-} else if (window.location.port === '5000') {
-  BASE_URL = window.location.origin;
+} else if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  // If hosted on a network IP but not port 5000, assume backend is on same IP port 5000
+  BASE_URL = window.location.protocol + '//' + window.location.hostname + ':5000';
 }
 
 async function apiFetch(endpoint, options) {

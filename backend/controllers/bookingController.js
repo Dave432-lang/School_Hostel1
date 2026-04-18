@@ -8,17 +8,18 @@ exports.createBooking = async (req, res) => {
   if (!room_id) return res.status(400).json({ error: 'room_id required' });
   try {
     // Atomic Transaction-less Claim
-    const claim = await pool.query('UPDATE rooms SET is_available=FALSE WHERE id=$1 AND is_available=TRUE RETURNING *', [room_id]);
-    if (!claim.rows.length) return res.status(409).json({ error: 'Room is no longer available' });
+    const claim = await pool.query('UPDATE rooms SET is_available=FALSE WHERE id=? AND is_available=TRUE', [room_id]);
+    if (claim.affectedRows === 0) return res.status(409).json({ error: 'Room is no longer available' });
 
     const b = await pool.query(
-      'INSERT INTO bookings (user_id, room_id, status, payment_status, semester, agreed_to_terms) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      'INSERT INTO bookings (user_id, room_id, status, payment_status, semester, agreed_to_terms) VALUES (?,?,?,?,?,?)',
       [user_id, room_id, 'confirmed', 'unpaid', semester || null, agreed_to_terms || false]
     );
+    const bookingId = b.insertId;
     
     // Dispatch Notification
     try {
-      const u = await pool.query('SELECT email, first_name FROM users WHERE id=$1', [user_id]);
+      const u = await pool.query('SELECT email, first_name FROM users WHERE id=?', [user_id]);
       if (u.rows.length) {
         await sendEmail(
           u.rows[0].email,
@@ -28,7 +29,7 @@ exports.createBooking = async (req, res) => {
       }
     } catch(e) { console.error('Email trigger failed', e); }
 
-    res.status(201).json({ message: 'Booking successful', booking: b.rows[0] });
+    res.status(201).json({ message: 'Booking successful', booking: { id: bookingId, ...req.body } });
   } catch (err) {
     console.error('❌ POST /bookings:', err.message);
     res.status(500).json({ error: err.message });
@@ -47,14 +48,14 @@ exports.getUserBookings = async (req, res) => {
       'FROM bookings b ' +
       'LEFT JOIN rooms r ON r.id=b.room_id ' +
       'LEFT JOIN hostels h ON h.id=r.hostel_id ' +
-      'WHERE b.user_id=$1 ORDER BY b.id DESC',
+      'WHERE b.user_id=? ORDER BY b.id DESC',
       [req.params.userId]
     );
     res.json(r.rows);
   } catch (err) {
     console.error('❌ /bookings join error:', err.message);
     try {
-      const s = await pool.query('SELECT * FROM bookings WHERE user_id=$1 ORDER BY id DESC', [req.params.userId]);
+      const s = await pool.query('SELECT * FROM bookings WHERE user_id=? ORDER BY id DESC', [req.params.userId]);
       res.json(s.rows);
     } catch { res.json([]); }
   }
@@ -62,14 +63,14 @@ exports.getUserBookings = async (req, res) => {
 
 exports.cancelBooking = async (req, res) => {
   try {
-    const b = await pool.query('SELECT * FROM bookings WHERE id=$1', [req.params.bookingId]);
+    const b = await pool.query('SELECT * FROM bookings WHERE id=?', [req.params.bookingId]);
     if (!b.rows.length) return res.status(404).json({ error: 'Booking not found' });
     if (b.rows[0].room_id)
-      await pool.query('UPDATE rooms SET is_available=TRUE WHERE id=$1', [b.rows[0].room_id]);
-    const r = await pool.query(
-      'UPDATE bookings SET status=\'cancelled\' WHERE id=$1 RETURNING *', [req.params.bookingId]
+      await pool.query('UPDATE rooms SET is_available=TRUE WHERE id=?', [b.rows[0].room_id]);
+    await pool.query(
+      'UPDATE bookings SET status=\'cancelled\' WHERE id=?', [req.params.bookingId]
     );
-    res.json({ message: 'Booking cancelled', booking: r.rows[0] });
+    res.json({ message: 'Booking cancelled' });
   } catch (err) { res.status(500).json({ error: 'Error cancelling booking' }); }
 };
 
@@ -80,7 +81,7 @@ exports.initializePayment = async (req, res) => {
   if (!room_id || !email || !amount_ghs)
     return res.status(400).json({ error: 'room_id, email, amount_ghs required' });
   try {
-    const room = await pool.query('SELECT * FROM rooms WHERE id=$1 AND is_available=TRUE', [room_id]);
+    const room = await pool.query('SELECT * FROM rooms WHERE id=? AND is_available=TRUE', [room_id]);
     if (!room.rows.length) return res.status(409).json({ error: 'Room is no longer available' });
 
     const amountPesewas = Math.round(parseFloat(amount_ghs) * 100);
@@ -120,22 +121,22 @@ exports.verifyPayment = async (req, res) => {
     if (!result.status || result.data.status !== 'success')
       return res.status(402).json({ error: 'Payment not confirmed by Paystack' });
 
-    await client.query('BEGIN');
+    await client.query('START TRANSACTION');
     
     // Atomic Claim within Transaction
     const claim = await client.query(
-      'UPDATE rooms SET is_available=FALSE WHERE id=$1 AND is_available=TRUE RETURNING *', 
+      'UPDATE rooms SET is_available=FALSE WHERE id=? AND is_available=TRUE', 
       [room_id]
     );
-    if (!claim.rows.length) {
+    if (claim.rowCount === 0) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Room is no longer available. Please contact support for a refund.' });
     }
 
     const amountPaid = result.data.amount / 100;
 
-    const booking = await client.query(
-      'INSERT INTO bookings (user_id,room_id,status,payment_reference,payment_status,amount_paid,semester,agreed_to_terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+    const bookingResult = await client.query(
+      'INSERT INTO bookings (user_id,room_id,status,payment_reference,payment_status,amount_paid,semester,agreed_to_terms) VALUES (?,?,?,?,?,?,?,?)',
       [user_id, room_id, 'confirmed', reference, 'paid', amountPaid, semester || null, agreed_to_terms || false]
     );
 
@@ -143,7 +144,7 @@ exports.verifyPayment = async (req, res) => {
     
     // Dispatch Payment Notification
     try {
-      const u = await pool.query('SELECT email, first_name FROM users WHERE id=$1', [user_id]);
+      const u = await pool.query('SELECT email, first_name FROM users WHERE id=?', [user_id]);
       if (u.rows.length) {
         await sendEmail(
           u.rows[0].email,
@@ -153,7 +154,7 @@ exports.verifyPayment = async (req, res) => {
       }
     } catch(e) { console.error('Email trigger failed', e); }
 
-    res.status(201).json({ message: 'Payment verified! Booking confirmed.', booking: booking.rows[0] });
+    res.status(201).json({ message: 'Payment verified! Booking confirmed.', booking_id: bookingResult.insertId });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('❌ /pay/verify:', err.message);
@@ -184,18 +185,18 @@ exports.paystackWebhook = async (req, res) => {
     res.send('Webhook received successfully');
     
     // Check if booking already exists (from synchronous frontend verification)
-    const existing = await pool.query('SELECT id FROM bookings WHERE payment_reference=$1', [reference]);
+    const existing = await pool.query('SELECT id FROM bookings WHERE payment_reference=?', [reference]);
     if (existing.rows.length > 0) return; // Already handled
 
     // If not handled, do the booking process here natively!
     const client = await pool.connect();
     try {
-      await client.query('BEGIN');
-      const claim = await client.query('UPDATE rooms SET is_available=FALSE WHERE id=$1 AND is_available=TRUE RETURNING *', [room_id]);
-      if (claim.rows.length > 0) {
+      await client.query('START TRANSACTION');
+      const claim = await client.query('UPDATE rooms SET is_available=FALSE WHERE id=? AND is_available=TRUE', [room_id]);
+      if (claim.rowCount > 0) {
         const amountPaid = event.data.amount / 100;
         await client.query(
-          'INSERT INTO bookings (user_id,room_id,status,payment_reference,payment_status,amount_paid,semester,agreed_to_terms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+          'INSERT INTO bookings (user_id,room_id,status,payment_reference,payment_status,amount_paid,semester,agreed_to_terms) VALUES (?,?,?,?,?,?,?,?)',
           [user_id, room_id, 'confirmed', reference, 'paid', amountPaid, null, true]
         );
       }

@@ -1,8 +1,11 @@
-require('dotenv').config();
+const path    = require('path');
+const isPkg   = typeof process.pkg !== 'undefined';
+const baseDir = isPkg ? path.dirname(process.execPath) : __dirname;
+
+require('dotenv').config({ path: path.join(baseDir, '.env') });
 const express = require('express');
 const cors    = require('cors');
 const cookieParser = require('cookie-parser');
-const path    = require('path');
 const http    = require('http');
 const { Server } = require('socket.io');
 
@@ -40,7 +43,7 @@ app.use(cookieParser());
 app.use(sanitizeInput);
 
 // Serve frontend
-const frontendPath = path.join(__dirname, '..', 'frontend');
+const frontendPath = isPkg ? path.join(baseDir, 'frontend') : path.join(__dirname, '..', 'frontend');
 app.use(express.static(frontendPath));
 
 // Public routes explicitly mapped to match frontend expectations

@@ -11,16 +11,16 @@ exports.getAnalytics = async (req, res) => {
       { date: 'Sat', amount: 5500 },
       { date: 'Sun', amount: 28000 }
     ];
-    const statusRes = await pool.query('SELECT status, COUNT(*) FROM bookings GROUP BY status');
+    const statusRes = await pool.query('SELECT status, COUNT(*) AS count FROM bookings GROUP BY status');
     res.json({ revenueHistory, statusDistribution: statusRes.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 exports.getPublicStats = async (req, res) => {
   try {
-    const hostels = await pool.query('SELECT COUNT(*) FROM hostels');
-    const rooms   = await pool.query('SELECT COUNT(*) FROM rooms');
-    const students = await pool.query('SELECT COUNT(*) FROM users WHERE role = \'student\'');
+    const hostels = await pool.query('SELECT COUNT(*) AS count FROM hostels');
+    const rooms   = await pool.query('SELECT COUNT(*) AS count FROM rooms');
+    const students = await pool.query('SELECT COUNT(*) AS count FROM users WHERE role = \'student\'');
     res.json({
       totalHostels: parseInt(hostels.rows[0].count),
       totalRooms: parseInt(rooms.rows[0].count),
@@ -31,7 +31,7 @@ exports.getPublicStats = async (req, res) => {
 
 exports.getAdminBookings = async (req, res) => {
   try {
-    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
     let query = 'SELECT b.*, u.first_name, u.last_name, u.email as user_email, h.name as hostel_name, r.room_number ' +
                 'FROM bookings b ' +
                 'JOIN users u ON u.id = b.user_id ' +
@@ -40,7 +40,7 @@ exports.getAdminBookings = async (req, res) => {
     let params = [];
 
     if (check.rows[0].role === 'manager') {
-      query += 'WHERE h.manager_id = $1 ';
+      query += 'WHERE h.manager_id = ? ';
       params.push(req.user.id);
     }
     
@@ -54,26 +54,26 @@ exports.updateBookingStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   try {
-    const r = await pool.query('UPDATE bookings SET status=$1 WHERE id=$2 RETURNING *', [status, id]);
-    res.json(r.rows[0]);
+    await pool.query('UPDATE bookings SET status=? WHERE id=?', [status, id]);
+    res.json({ id, status });
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
 exports.getAdminStats = async (req, res) => {
   try {
-    const check = await pool.query('SELECT role FROM users WHERE id=$1', [req.user.id]);
+    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
     const isManagerRole = check.rows[0].role === 'manager';
     
-    let hostelsQ = 'SELECT COUNT(*) FROM hostels';
-    let usersQ = 'SELECT COUNT(*) FROM users WHERE role=\'student\'';
-    let bookingsQ = 'SELECT COUNT(*) FROM bookings';
-    let revenueQ = 'SELECT SUM(amount_paid) FROM bookings WHERE payment_status=\'paid\'';
+    let hostelsQ = 'SELECT COUNT(*) AS count FROM hostels';
+    let usersQ = 'SELECT COUNT(*) AS count FROM users WHERE role=\'student\'';
+    let bookingsQ = 'SELECT COUNT(*) AS count FROM bookings';
+    let revenueQ = 'SELECT SUM(amount_paid) AS sum FROM bookings WHERE payment_status=\'paid\'';
     let params = [];
 
     if (isManagerRole) {
-      hostelsQ += ' WHERE manager_id = $1';
-      bookingsQ = 'SELECT COUNT(*) FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE h.manager_id = $1';
-      revenueQ = 'SELECT SUM(amount_paid) FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE b.payment_status=\'paid\' AND h.manager_id = $1';
+      hostelsQ += ' WHERE manager_id = ?';
+      bookingsQ = 'SELECT COUNT(*) AS count FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE h.manager_id = ?';
+      revenueQ = 'SELECT SUM(amount_paid) AS sum FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN hostels h ON h.id=r.hostel_id WHERE b.payment_status=\'paid\' AND h.manager_id = ?';
       params.push(req.user.id);
     }
 
