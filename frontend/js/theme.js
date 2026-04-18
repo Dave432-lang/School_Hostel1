@@ -6,17 +6,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.classList.add('dark-mode');
   }
 
-  // Inject the toggle button into the navbar if it exists
+  // Inject the toggle button natively into the exact right spot
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'theme-toggle';
+  toggleBtn.title = 'Toggle Dark Mode';
+  toggleBtn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
+  
+  const navBell = document.querySelector('.nav-bell-wrapper');
+  const userBadge = document.querySelector('.user-badge');
   const navbarRight = document.querySelector('.navbar-right');
-  if (navbarRight) {
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'theme-toggle';
-    toggleBtn.title = 'Toggle Dark Mode';
-    toggleBtn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
-    
-    // Insert it before the user badge or at the end
-    navbarRight.insertBefore(toggleBtn, navbarRight.firstChild);
 
+  let inserted = false;
+  if (navBell && navBell.parentNode) {
+    // Wrap to ensure vertical center if parent lacks flex, but nav-bell-wrapper's parents are usually flex
+    navBell.parentNode.insertBefore(toggleBtn, navBell);
+    inserted = true;
+  } else if (userBadge && userBadge.parentNode) {
+    userBadge.parentNode.insertBefore(toggleBtn, userBadge);
+    inserted = true;
+  } else if (navbarRight) {
+    navbarRight.insertBefore(toggleBtn, navbarRight.firstChild);
+    inserted = true;
+  }
+
+  if (inserted) {
     toggleBtn.addEventListener('click', () => {
       document.documentElement.classList.toggle('dark-mode');
       const isDark = document.documentElement.classList.contains('dark-mode');

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       return;
     }
   } catch (err) {
+    console.error('Security Check Error:', err);
     localStorage.removeItem('user_role');
     window.location.href = '../index.html';
     return;

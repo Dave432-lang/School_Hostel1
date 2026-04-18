@@ -13,15 +13,11 @@ async function check() {
     console.log('=== HOSTELS columns ===');
     hostels.rows.forEach(r => console.log(' ', r.column_name, ':', r.data_type));
 
-    const bookings = await pool.query(
-      "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'bookings' ORDER BY ordinal_position"
+    const users = await pool.query(
+      "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position"
     );
-    console.log('=== BOOKINGS columns ===');
-    bookings.rows.forEach(r => console.log(' ', r.column_name, ':', r.data_type));
-
-    const s = await pool.query('SELECT * FROM rooms LIMIT 2');
-    console.log('=== ROOMS rows ===');
-    s.rows.forEach(r => console.log('  ', JSON.stringify(r)));
+    console.log('=== USERS columns ===');
+    users.rows.forEach(r => console.log(' ', r.column_name, ':', r.data_type));
 
     const h = await pool.query('SELECT * FROM hostels LIMIT 2');
     console.log('=== HOSTELS rows ===');
