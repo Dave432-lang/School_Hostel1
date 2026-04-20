@@ -98,7 +98,9 @@ async function managerSendMessage() {
     document.getElementById('m-chat-messages').appendChild(div);
     input.value = '';
     document.getElementById('m-chat-messages').scrollTop = document.getElementById('m-chat-messages').scrollHeight;
-  } catch(e) { showToast('Failed to send message', 'error'); }
+  } catch(e) { 
+    showToast('Failed to send message: ' + e.message, 'error'); 
+  }
 }
 
 /* ---- ANALYTICS ---- */

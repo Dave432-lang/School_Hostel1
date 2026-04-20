@@ -55,7 +55,15 @@ async function loadChatMessages() {
   if (!container) return;
 
   try {
-    const msgs = await apiFetch(`/chat/${currentChatHostelId}`);
+    // 1. Get Manager ID for this hostel
+    let managerId = 1; // Default
+    try {
+      const h = typeof allHostels !== 'undefined' ? allHostels.find(x => x.id == currentChatHostelId) : await apiFetch(`/hostels/${currentChatHostelId}`);
+      managerId = (h && h.manager_id) ? h.manager_id : 1;
+    } catch(e) { console.warn('Could not determine manager ID for chat context'); }
+
+    // 2. Fetch messages with other_id
+    const msgs = await apiFetch(`/chat/${currentChatHostelId}?other_id=${managerId}`);
     if (!msgs || !Array.isArray(msgs)) return;
     
     container.innerHTML = '';
@@ -104,7 +112,7 @@ async function sendChatMessage() {
     // Server will push this message via WebSockets to the receiver, 
     // we don't need to reload because we appended locally.
   } catch (err) {
-    showToast('Failed to send message.', 'error');
+    showToast('Failed to send message: ' + err.message, 'error');
   }
 }
 

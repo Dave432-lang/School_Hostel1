@@ -60,4 +60,8 @@ app.use('/chat', chatRoutes);         // /chat, /chat/:hostelId
 app.use('/waitlist', waitlistRoutes); // /waitlist/join, /waitlist/admin/:hostelId
 app.use('/admin', adminRoutes);       // /admin/*
 
-server.listen(PORT, () => console.log(`Server & WebSockets running on http://localhost:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 School Hostel System is LIVE!`);
+    console.log(`🏠 Local:            http://localhost:${PORT}`);
+    console.log(`📱 On your Network:  http://172.20.10.2:${PORT}\n`);
+});
