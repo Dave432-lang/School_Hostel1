@@ -453,3 +453,23 @@ async function exportStudentsCSV() {
     showToast('Students downloaded!', 'success');
   } catch (err) { showToast('Export failed', 'error'); }
 }
+
+/* ---- REAL-TIME BOOKING UPDATE ---- */
+window.handleNewBooking = function(payload) {
+  console.log('New booking event received in Admin dashboard:', payload);
+  
+  // Refresh Stats
+  loadStats();
+  
+  // Refresh Recent Bookings if on dashboard
+  loadRecentBookings();
+  
+  // Refresh charts
+  initAdminCharts();
+  
+  // If we are currently on the Bookings tab, refresh the full list too
+  const bookingsTab = document.getElementById('tab-bookings');
+  if (bookingsTab && bookingsTab.classList.contains('active')) {
+    loadAllBookings();
+  }
+};

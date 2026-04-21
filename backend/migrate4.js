@@ -6,7 +6,8 @@ async function migrate() {
 
     // Users
     try {
-      await pool.query(`ALTER TABLE users RENAME COLUMN name TO first_name`);
+      // In MySQL, check if column exists before renaming is harder, but we can try
+      await pool.query(`ALTER TABLE users CHANGE COLUMN name first_name VARCHAR(150)`);
       console.log('✅ users.name renamed to first_name');
     } catch (e) { console.log('⚠️ users.name already renamed or missing'); }
 
@@ -23,8 +24,8 @@ async function migrate() {
     await pool.query(`
       ALTER TABLE hostels
       ADD COLUMN IF NOT EXISTS rating NUMERIC(3,1) DEFAULT 0.0,
-      ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]',
-      ADD COLUMN IF NOT EXISTS image_urls JSONB DEFAULT '{"rooms":[],"washrooms":[],"kitchens":[]}'
+      ADD COLUMN IF NOT EXISTS amenities JSON,
+      ADD COLUMN IF NOT EXISTS image_urls JSON
     `);
     console.log('✅ Hostels table extended');
 
@@ -39,12 +40,13 @@ async function migrate() {
     // Reviews
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reviews (
-        id         SERIAL PRIMARY KEY,
-        hostel_id  INT  NOT NULL REFERENCES hostels(id) ON DELETE CASCADE,
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        hostel_id  INT  NOT NULL,
         user_name  VARCHAR(150) NOT NULL,
         rating     INT  CHECK (rating >= 1 AND rating <= 5),
         comment    TEXT,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_hostel_reviews FOREIGN KEY (hostel_id) REFERENCES hostels(id) ON DELETE CASCADE
       )
     `);
     console.log('✅ Reviews table created');
@@ -91,7 +93,7 @@ async function migrate() {
       for (const h of seedHostelsData) {
         await pool.query(
           `INSERT INTO hostels (name, location, description, type, gender, price_per_semester, rating, amenities, image_urls)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [h.name, h.location, h.desc, h.type, h.gender, h.price, h.rating, h.amenities, h.images]
         );
       }
@@ -101,7 +103,7 @@ async function migrate() {
       for (const nh of newHostels.rows) {
         for (let r=1; r<=5; r++) {
           try {
-            await pool.query(`INSERT INTO rooms (hostel_id, room_number, room_type, is_available) VALUES ($1,$2,$3,TRUE)`,
+            await pool.query(`INSERT INTO rooms (hostel_id, room_number, room_type, is_available) VALUES (?,?,?,TRUE)`,
               [nh.id, `Room ${r}`, r % 2 === 0 ? 'double' : 'single']
             );
           } catch(e) {}

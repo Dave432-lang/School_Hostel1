@@ -31,7 +31,6 @@ exports.getPublicStats = async (req, res) => {
 
 exports.getAdminBookings = async (req, res) => {
   try {
-    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
     let query = 'SELECT b.*, u.first_name, u.last_name, u.email as user_email, h.name as hostel_name, r.room_number ' +
                 'FROM bookings b ' +
                 'JOIN users u ON u.id = b.user_id ' +
@@ -39,7 +38,7 @@ exports.getAdminBookings = async (req, res) => {
                 'LEFT JOIN hostels h ON h.id = r.hostel_id ';
     let params = [];
 
-    if (check.rows[0].role === 'manager') {
+    if (req.user.role === 'manager') {
       query += 'WHERE h.manager_id = ? ';
       params.push(req.user.id);
     }
@@ -61,8 +60,7 @@ exports.updateBookingStatus = async (req, res) => {
 
 exports.getAdminStats = async (req, res) => {
   try {
-    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
-    const isManagerRole = check.rows[0].role === 'manager';
+    const isManagerRole = req.user.role === 'manager';
     
     let hostelsQ = 'SELECT COUNT(*) AS count FROM hostels';
     let usersQ = 'SELECT COUNT(*) AS count FROM users WHERE role=\'student\'';

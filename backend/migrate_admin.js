@@ -10,16 +10,16 @@ async function migrate() {
     console.log('✓ Added "role" column to users table');
 
     // 2. Add UNIQUE constraint to email if not exists
-    // We try to add it, but first check if it exists
+    const dbNameResult = await pool.query('SELECT DATABASE() as db');
+    const dbName = dbNameResult.rows[0].db;
+    
     const checkUnique = await pool.query(`
-      SELECT count(*) FROM pg_indexes 
-      WHERE tablename = 'users' AND indexname = 'users_email_key'
-    `);
+      SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.STATISTICS 
+      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND INDEX_NAME = 'users_email_key'
+    `, [dbName]);
     
     if (parseInt(checkUnique.rows[0].count) === 0) {
       console.log('Adding UNIQUE constraint to email...');
-      // To add a unique constraint, all existing emails must be unique. 
-      // If there are duplicates, this might fail, but we'll assume it's clean for now.
       await pool.query(`ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email)`);
       console.log('✓ Added UNIQUE constraint to email');
     }
@@ -30,8 +30,8 @@ async function migrate() {
     // 4. Insert admin user (upsert based on email)
     await pool.query(`
       INSERT INTO users (first_name, last_name, email, password, role)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (email) DO UPDATE SET role = 'admin', password = $4
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE role = 'admin', password = VALUES(password)
     `, ['Admin', 'User', 'dagbanjadavid22@gmail.com', hashedPass, 'admin']);
     console.log('✓ Admin account created/updated: dagbanjadavid22@gmail.com');
 

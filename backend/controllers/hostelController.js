@@ -51,8 +51,7 @@ exports.updateHostel = async (req, res) => {
   const { name, location, description, type, gender, price_per_semester, amenities, image_urls, latitude, longitude, manager_id } = req.body;
   try {
     // If manager, verify ownership
-    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
-    if (check.rows[0].role === 'manager') {
+    if (req.user.role === 'manager') {
        const ownership = await pool.query('SELECT manager_id FROM hostels WHERE id=?', [id]);
        if (ownership.rows[0]?.manager_id !== req.user.id) return res.status(403).json({ error: 'You do not manage this hostel' });
     }

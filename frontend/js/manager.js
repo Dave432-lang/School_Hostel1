@@ -34,6 +34,7 @@ function showTab(tab, el) {
 /* ---- Message Center Logic ---- */
 let activeStudentId = null;
 let activeHostelId = null;
+let activeQuickReplyContext = { studentId: null, hostelId: null, studentName: '', hostelName: '' };
 
 async function loadGroupedChats() {
   const list = document.getElementById('m-chat-list');
@@ -173,3 +174,117 @@ async function loadManagerBookings() {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--danger)">Error loading bookings.</td></tr>';
   }
 }
+
+/* ---- REAL-TIME INTERACTIVE REPLIES ---- */
+window.handleIncomingMessage = function(msg) {
+  // 1. If currently viewing this specific chat, append message real-time
+  if (activeStudentId == msg.sender_id && activeHostelId == msg.hostel_id) {
+    const container = document.getElementById('m-chat-messages');
+    if (container) {
+      const div = document.createElement('div');
+      div.className = 'message received';
+      div.textContent = msg.message;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      
+      // Also refresh the chat list in background to update snippets
+      loadGroupedChats();
+      return;
+    }
+  }
+
+  // 2. Otherwise, show an interactive "Quick Reply" toast
+  const senderName = msg.sender_name || 'Student';
+  const hostelName = msg.hostel_name || 'your hostel';
+  
+  showToast(`<strong>${senderName}</strong>: "${msg.message.substring(0, 30)}${msg.message.length > 30 ? '...' : ''}" <br><small>Re: ${hostelName}</small>`, 'info', {
+    label: 'Quick Reply',
+    callback: () => {
+      openQuickReply(msg.sender_id, msg.hostel_id, senderName, hostelName);
+    }
+  });
+
+  // 3. Refresh list to show unread state/snippet
+  loadGroupedChats();
+};
+
+function goToChat(studentId, hostelId, studentName, hostelName) {
+  // Select the Messages tab 
+  const messagesTabBtn = Array.from(document.querySelectorAll('.menu-item'))
+    .find(el => el.textContent.includes('Messages'));
+  
+  showTab('messages', messagesTabBtn);
+  
+  // Open the specific conversation
+  openConversation(studentId, hostelId, studentName, hostelName);
+}
+
+/* ---- QUICK REPLY MODAL LOGIC ---- */
+function openQuickReply(sid, hid, sname, hname) {
+  activeQuickReplyContext = { studentId: sid, hostelId: hid, studentName: sname, hostelName: hname };
+  
+  document.getElementById('qr-student').textContent = sname;
+  document.getElementById('qr-hostel').textContent = hname;
+  document.getElementById('qr-input').value = '';
+  document.getElementById('quick-reply-overlay').classList.add('open');
+  
+  // Focus input automatically
+  setTimeout(() => document.getElementById('qr-input').focus(), 100);
+}
+
+function closeQuickReply() {
+  document.getElementById('quick-reply-overlay').classList.remove('open');
+}
+
+async function sendQuickReply() {
+  const input = document.getElementById('qr-input');
+  const msg = input.value.trim();
+  const { studentId, hostelId, studentName, hostelName } = activeQuickReplyContext;
+
+  if (!msg || !studentId || !hostelId) return;
+
+  const btn = document.getElementById('qr-send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    await apiFetch('/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        hostel_id: hostelId,
+        receiver_id: studentId,
+        message: msg
+      })
+    });
+
+    closeQuickReply();
+    showToast('Reply sent successfully to ' + studentName, 'success');
+    
+    // If the main chat window happens to be open for this person, refresh it
+    if (activeStudentId == studentId && activeHostelId == hostelId) {
+      openConversation(studentId, hostelId, studentName, hostelName);
+    }
+    loadGroupedChats();
+  } catch (e) {
+    showToast('Failed to send quick reply: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Reply';
+  }
+}
+
+/* ---- REAL-TIME BOOKING UPDATE ---- */
+window.handleNewBooking = function(payload) {
+  // If we are a manager, we check if this booking belongs to our hostel
+  // Actually, simplest is to just refresh everything if we are on the dashboard
+  console.log('New booking event received:', payload);
+  
+  // Refresh Stats
+  loadManagerStats();
+  
+  // Refresh List
+  loadManagerBookings();
+  
+  // Refresh Charts
+  initManagerCharts();
+};

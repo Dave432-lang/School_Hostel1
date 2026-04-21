@@ -208,15 +208,32 @@ function initNavbar() {
   }
 }
 
-function showToast(message, type) {
+function showToast(message, type, action) {
   type = type || 'info';
   const container = document.getElementById('toast-container');
   if (!container) return;
   const toast = document.createElement('div');
   toast.className = 'toast ' + type;
-  toast.innerHTML = '<span class="toast-msg">' + message + '</span>';
+  
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'toast-msg';
+  msgSpan.innerHTML = message;
+  toast.appendChild(msgSpan);
+
+  if (action && action.label && action.callback) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      action.callback();
+      toast.remove();
+    };
+    toast.appendChild(btn);
+  }
+
   container.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 6000);
 }
 
 let socket;
@@ -228,13 +245,26 @@ function initRealtime() {
     socket.emit('join_user', localStorage.getItem('user_id'));
     
     socket.on('new_message', (msg) => {
-      // If chat function is loaded on current page
-      if (typeof appendChatMessage === 'function') appendChatMessage(msg.message, 'received');
+      // If global handler specifically defined (e.g. in manager.js)
+      if (window.handleIncomingMessage) {
+        window.handleIncomingMessage(msg);
+      } else if (typeof appendChatMessage === 'function') {
+        // If chat UI is active on current page (Student side)
+        appendChatMessage(msg.message, 'received');
+      } else {
+        // Just show a notification
+        showToast('New message: ' + msg.message, 'info');
+      }
     });
     
     socket.on('notification', (payload) => {
        showToast(payload.message, 'info');
        checkNotifications(); 
+    });
+
+    socket.on('new_booking', (payload) => {
+       showToast('<strong>New Booking Received!</strong>', 'success');
+       if (window.handleNewBooking) window.handleNewBooking(payload);
     });
   };
   document.head.appendChild(script);

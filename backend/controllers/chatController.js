@@ -29,14 +29,13 @@ exports.getChatMessages = async (req, res) => {
 
 exports.getAdminChatGrouped = async (req, res) => {
   try {
-    const check = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
     let query = 'SELECT c.*, u.first_name, u.last_name, h.name as hostel_name ' +
                 'FROM chat_messages c ' +
                 'JOIN users u ON u.id = c.sender_id ' +
                 'JOIN hostels h ON h.id = c.hostel_id ' +
                 'WHERE c.id IN (SELECT MAX(id) FROM chat_messages GROUP BY sender_id, hostel_id) ';
     let params = [];
-    if (check.rows[0].role === 'manager') {
+    if (req.user.role === 'manager') {
        query += 'AND h.manager_id = ? ';
        params.push(req.user.id);
     }
@@ -87,7 +86,16 @@ exports.sendMessage = async (req, res) => {
       // 3. Emit real-time WebSockets events!
       const io = req.app.get('io');
       if (io) {
-        io.to('user_' + receiver_id).emit('new_message', newMessage);
+        const hostelData = await pool.query('SELECT name FROM hostels WHERE id=?', [hostel_id]);
+        const hostelName = hostelData.rows[0]?.name || 'Unknown Hostel';
+        
+        const socketPayload = { 
+          ...newMessage, 
+          sender_name: senderName,
+          hostel_name: hostelName
+        };
+
+        io.to('user_' + receiver_id).emit('new_message', socketPayload);
         io.to('user_' + receiver_id).emit('notification', { message: notifMsg });
       }
     } catch (notiErr) {

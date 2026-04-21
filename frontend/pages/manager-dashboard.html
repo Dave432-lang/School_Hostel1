@@ -168,6 +168,28 @@
 
   <div id="toast-container"></div>
 
+  <!-- Quick Reply Modal -->
+  <div id="quick-reply-overlay" class="modal-overlay">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="qr-title">Quick Reply</h3>
+        <button class="modal-close" onclick="closeQuickReply()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div id="qr-context" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg); padding: 0.75rem; border-radius: 8px;">
+          Replying to <strong><span id="qr-student">Student</span></strong> regarding <span id="qr-hostel">Hostel</span>
+        </div>
+        <div class="form-group">
+          <textarea id="qr-input" class="form-control" rows="4" placeholder="Type your message here..." style="resize: none;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeQuickReply()">Cancel</button>
+        <button class="btn btn-primary" id="qr-send-btn" onclick="sendQuickReply()">Send Reply</button>
+      </div>
+    </div>
+  </div>
+
   <script src="../js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="../js/manager.js"></script>

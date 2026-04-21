@@ -17,8 +17,7 @@ exports.getAdminWaitlist = async (req, res) => {
      const hostel = await pool.query('SELECT manager_id FROM hostels WHERE id=?', [req.params.hostelId]);
      if (!hostel.rows.length) return res.status(404).json({ error: 'Hostel not found' });
      
-     const user = await pool.query('SELECT role FROM users WHERE id=?', [req.user.id]);
-     if (user.rows[0].role === 'manager' && hostel.rows[0].manager_id !== req.user.id) {
+     if (req.user.role === 'manager' && hostel.rows[0].manager_id !== req.user.id) {
        return res.status(403).json({ error: 'You do not manage this hostel' });
      }
 

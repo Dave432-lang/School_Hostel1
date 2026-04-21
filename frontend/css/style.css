@@ -1153,6 +1153,23 @@ tbody tr:hover {
   flex: 1;
 }
 
+.toast-action {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: .35rem .75rem;
+  border-radius: var(--radius-sm);
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.toast-action:hover {
+  background: var(--primary-dark);
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;

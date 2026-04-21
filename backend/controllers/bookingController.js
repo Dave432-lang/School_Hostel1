@@ -9,7 +9,7 @@ exports.createBooking = async (req, res) => {
   try {
     // Atomic Transaction-less Claim
     const claim = await pool.query('UPDATE rooms SET is_available=FALSE WHERE id=? AND is_available=TRUE', [room_id]);
-    if (claim.affectedRows === 0) return res.status(409).json({ error: 'Room is no longer available' });
+    if (claim.rowCount === 0) return res.status(409).json({ error: 'Room is no longer available' });
 
     const b = await pool.query(
       'INSERT INTO bookings (user_id, room_id, status, payment_status, semester, agreed_to_terms) VALUES (?,?,?,?,?,?)',
@@ -28,6 +28,14 @@ exports.createBooking = async (req, res) => {
         );
       }
     } catch(e) { console.error('Email trigger failed', e); }
+
+    // Dispatch Real-time Update
+    const io = req.app.get('io');
+    if (io) {
+      const room = await pool.query('SELECT hostel_id FROM rooms WHERE id=?', [room_id]);
+      const hostelId = room.rows[0]?.hostel_id;
+      io.emit('new_booking', { booking_id: bookingId, hostel_id: hostelId });
+    }
 
     res.status(201).json({ message: 'Booking successful', booking: { id: bookingId, ...req.body } });
   } catch (err) {
@@ -154,6 +162,14 @@ exports.verifyPayment = async (req, res) => {
       }
     } catch(e) { console.error('Email trigger failed', e); }
 
+    // Dispatch Real-time Update
+    const io = req.app.get('io');
+    if (io) {
+      const room = await pool.query('SELECT hostel_id FROM rooms WHERE id=?', [room_id]);
+      const hostelId = room.rows[0]?.hostel_id;
+      io.emit('new_booking', { booking_id: bookingResult.insertId, hostel_id: hostelId });
+    }
+
     res.status(201).json({ message: 'Payment verified! Booking confirmed.', booking_id: bookingResult.insertId });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -195,10 +211,18 @@ exports.paystackWebhook = async (req, res) => {
       const claim = await client.query('UPDATE rooms SET is_available=FALSE WHERE id=? AND is_available=TRUE', [room_id]);
       if (claim.rowCount > 0) {
         const amountPaid = event.data.amount / 100;
-        await client.query(
+        const b = await client.query(
           'INSERT INTO bookings (user_id,room_id,status,payment_reference,payment_status,amount_paid,semester,agreed_to_terms) VALUES (?,?,?,?,?,?,?,?)',
           [user_id, room_id, 'confirmed', reference, 'paid', amountPaid, null, true]
         );
+        
+        // Dispatch Real-time Update
+        const io = req.app.get('io');
+        if (io) {
+          const room = await client.query('SELECT hostel_id FROM rooms WHERE id=?', [room_id]);
+          const hostelId = room.rows[0]?.hostel_id;
+          io.emit('new_booking', { booking_id: b.insertId, hostel_id: hostelId });
+        }
       }
       await client.query('COMMIT');
     } catch (e) {
