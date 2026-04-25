@@ -382,11 +382,11 @@
       <section id="tab-messages" class="tab-panel">
         <h2 style="margin-bottom: 1.5rem">Message Center</h2>
         <div style="display:grid; grid-template-columns:300px 1fr; gap:1.5rem; height: calc(100vh - 200px)">
-          <div class="admin-card" style="display:flex; flex-direction:column; padding:0; margin-bottom:0">
+          <div style="grid-column: 1; display:flex; flex-direction:column; padding:0; margin-bottom:0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
             <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; background: #f8fafc;">Conversations</div>
             <div id="m-chat-list" style="flex:1; overflow-y:auto"></div>
           </div>
-          <div class="admin-card" style="display:flex; flex-direction:column; padding:0; overflow:hidden; margin-bottom:0">
+          <div style="grid-column: 2; display:flex; flex-direction:column; padding:0; overflow:hidden; margin-bottom:0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
             <div class="chat-header" id="m-chat-header" style="height: 60px; background: var(--primary); color: #fff; padding: 1rem; display: flex; align-items: center;">Select a Conversation</div>
             <div class="chat-messages" id="m-chat-messages" style="flex:1; background:#f8fafc; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
               <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center;">
@@ -541,7 +541,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="../js/api.js"></script>
-  <script src="../js/admin.js"></script>
+  <script src="../js/admin.js?v=2"></script>
   <script src="../js/theme.js"></script>
 </body>
 
