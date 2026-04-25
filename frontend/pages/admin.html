@@ -207,6 +207,7 @@
         <div class="sidebar-link" data-tab="hostels">🏠 Manage Hostels</div>
         <div class="sidebar-link" data-tab="rooms">🔑 Manage Rooms</div>
         <div class="sidebar-link" data-tab="bookings">📋 All Bookings</div>
+        <div class="sidebar-link" data-tab="messages">💬 All Messages</div>
         <div class="sidebar-link" data-tab="users">👥 Students List</div>
         <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
         <a href="hostel-list.html" class="sidebar-link">🌐 View Website</a>
@@ -377,6 +378,33 @@
         </div>
       </section>
 
+      <!-- MESSAGES TAB -->
+      <section id="tab-messages" class="tab-panel">
+        <h2 style="margin-bottom: 1.5rem">Message Center</h2>
+        <div style="display:grid; grid-template-columns:300px 1fr; gap:1.5rem; height: calc(100vh - 200px)">
+          <div class="admin-card" style="display:flex; flex-direction:column; padding:0; margin-bottom:0">
+            <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; background: #f8fafc;">Conversations</div>
+            <div id="m-chat-list" style="flex:1; overflow-y:auto"></div>
+          </div>
+          <div class="admin-card" style="display:flex; flex-direction:column; padding:0; overflow:hidden; margin-bottom:0">
+            <div class="chat-header" id="m-chat-header" style="height: 60px; background: var(--primary); color: #fff; padding: 1rem; display: flex; align-items: center;">Select a Conversation</div>
+            <div class="chat-messages" id="m-chat-messages" style="flex:1; background:#f8fafc; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 120px; height: 120px; margin-bottom: 1.5rem; opacity: 0.2; color: var(--primary);">
+                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <h4>Select a Conversation</h4>
+                <p>Choose a student from the left to read or reply to their messages.</p>
+              </div>
+            </div>
+            <div class="chat-input-area" id="m-chat-footer" style="display:none; padding: 0.75rem; border-top: 1px solid var(--border); gap: 0.5rem; background: #fff;">
+              <input type="text" class="form-control" id="m-chat-input" placeholder="Type a reply..." style="flex:1" />
+              <button class="btn btn-primary" onclick="adminSendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -488,6 +516,28 @@
 
   <!-- TOASTS -->
   <div id="toast-container"></div>
+
+  <!-- Quick Reply Modal -->
+  <div id="quick-reply-overlay" class="modal-overlay">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="qr-title">Quick Reply</h3>
+        <button class="modal-close" onclick="closeQuickReply()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div id="qr-context" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg); padding: 0.75rem; border-radius: 8px;">
+          Replying to <strong><span id="qr-student">Student</span></strong> regarding <span id="qr-hostel">Hostel</span>
+        </div>
+        <div class="form-group">
+          <textarea id="qr-input" class="form-control" rows="4" placeholder="Type your message here..." style="resize: none;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeQuickReply()">Cancel</button>
+        <button class="btn btn-primary" id="qr-send-btn" onclick="sendQuickReply()">Send Reply</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="../js/api.js"></script>

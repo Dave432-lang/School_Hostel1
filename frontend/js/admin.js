@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (target === 'rooms')      loadAdminHostelSelect();
       if (target === 'bookings')   loadAllBookings();
       if (target === 'users')      loadAllUsers();
+      if (target === 'messages')   loadAdminGroupedChats();
     });
   });
 
@@ -473,3 +474,163 @@ window.handleNewBooking = function(payload) {
     loadAllBookings();
   }
 };
+
+/* ---- ADMIN MESSAGE CENTER LOGIC ---- */
+let activeStudentId = null;
+let activeHostelId = null;
+let activeQuickReplyContext = { studentId: null, hostelId: null, studentName: '', hostelName: '' };
+
+async function loadAdminGroupedChats() {
+  const list = document.getElementById('m-chat-list');
+  if(!list) return;
+
+  try {
+    const chats = await apiFetch('/admin/chat/grouped');
+    if(!chats.length) {
+      list.innerHTML = '<div style="padding: 1rem; color: var(--text-muted); text-align: center;">No messages yet.</div>';
+      return;
+    }
+
+    list.innerHTML = chats.map(c => `
+      <div class="noti-item unread" style="padding: 1rem; border-bottom: 1px solid var(--border); cursor: pointer;" onclick="openConversation(${c.sender_id}, ${c.hostel_id}, '${(c.first_name || '').replace(/'/g, "\\'")}', '${(c.hostel_name || '').replace(/'/g, "\\'")}')">
+        <div style="font-weight:600">${c.first_name} ${c.last_name || ''}</div>
+        <div style="font-size:0.75rem; color:var(--primary)">${c.hostel_name}</div>
+        <div style="font-size:0.8rem; margin-top:4px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${c.message}</div>
+      </div>
+    `).join('');
+  } catch (e) { list.innerHTML = '<div style="padding: 1rem; color: #b91c1c; text-align: center;">Error loading chats.</div>'; }
+}
+
+async function openConversation(studentId, hostelId, studentName, hostelName) {
+  activeStudentId = studentId;
+  activeHostelId = hostelId;
+  
+  document.getElementById('m-chat-header').textContent = `Chat with ${studentName} (${hostelName})`;
+  document.getElementById('m-chat-footer').style.display = 'flex';
+  
+  const container = document.getElementById('m-chat-messages');
+  container.innerHTML = '<div class="spinner" style="margin: auto"></div>';
+
+  try {
+    const msgs = await apiFetch(`/chat/${hostelId}?other_id=${studentId}`);
+    container.innerHTML = '';
+    msgs.forEach(m => {
+      const div = document.createElement('div');
+      div.className = `message ${m.sender_id == getCurrentUserId() ? 'sent' : 'received'}`;
+      div.style.cssText = `max-width: 80%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.875rem; line-height: 1.4; margin-bottom: 0.5rem; width: fit-content; ${m.sender_id == getCurrentUserId() ? 'align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 2px;' : 'align-self: flex-start; background: #e2e8f0; color: var(--text-main); border-bottom-left-radius: 2px;'}`;
+      div.textContent = m.message;
+      container.appendChild(div);
+    });
+    container.scrollTop = container.scrollHeight;
+  } catch(e) { container.innerHTML = '<div style="color: #b91c1c;">Error loading messages.</div>'; }
+}
+
+async function adminSendMessage() {
+  const input = document.getElementById('m-chat-input');
+  const msg = input.value.trim();
+  if(!msg || !activeStudentId || !activeHostelId) return;
+
+  const payload = {
+    hostel_id: activeHostelId,
+    receiver_id: activeStudentId,
+    message: msg
+  };
+
+  try {
+    await apiFetch('/chat', { method: 'POST', body: JSON.stringify(payload) });
+    const div = document.createElement('div');
+    div.className = 'message sent';
+    div.style.cssText = 'max-width: 80%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.875rem; line-height: 1.4; margin-bottom: 0.5rem; width: fit-content; align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 2px;';
+    div.textContent = msg;
+    document.getElementById('m-chat-messages').appendChild(div);
+    input.value = '';
+    document.getElementById('m-chat-messages').scrollTop = document.getElementById('m-chat-messages').scrollHeight;
+  } catch(e) { 
+    if(window.showToast) showToast('Failed to send message: ' + e.message, 'error'); 
+  }
+}
+
+/* ---- REAL-TIME INTERACTIVE REPLIES ---- */
+window.handleIncomingMessage = function(msg) {
+  if (activeStudentId == msg.sender_id && activeHostelId == msg.hostel_id) {
+    const container = document.getElementById('m-chat-messages');
+    if (container) {
+      const div = document.createElement('div');
+      div.className = 'message received';
+      div.style.cssText = 'max-width: 80%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.875rem; line-height: 1.4; margin-bottom: 0.5rem; width: fit-content; align-self: flex-start; background: #e2e8f0; color: var(--text-main); border-bottom-left-radius: 2px;';
+      div.textContent = msg.message;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      
+      loadAdminGroupedChats();
+      return;
+    }
+  }
+
+  const senderName = msg.sender_name || 'Student';
+  const hostelName = msg.hostel_name || 'your hostel';
+  
+  if(window.showToast) {
+    showToast(`<strong>${senderName}</strong>: "${msg.message.substring(0, 30)}${msg.message.length > 30 ? '...' : ''}" <br><small>Re: ${hostelName}</small>`, 'info', {
+      label: 'Quick Reply',
+      callback: () => {
+        openQuickReply(msg.sender_id, msg.hostel_id, senderName, hostelName);
+      }
+    });
+  }
+
+  loadAdminGroupedChats();
+};
+
+/* ---- QUICK REPLY MODAL LOGIC ---- */
+function openQuickReply(sid, hid, sname, hname) {
+  activeQuickReplyContext = { studentId: sid, hostelId: hid, studentName: sname, hostelName: hname };
+  
+  document.getElementById('qr-student').textContent = sname;
+  document.getElementById('qr-hostel').textContent = hname;
+  document.getElementById('qr-input').value = '';
+  document.getElementById('quick-reply-overlay').classList.add('open');
+  
+  setTimeout(() => document.getElementById('qr-input').focus(), 100);
+}
+
+function closeQuickReply() {
+  document.getElementById('quick-reply-overlay').classList.remove('open');
+}
+
+async function sendQuickReply() {
+  const input = document.getElementById('qr-input');
+  const msg = input.value.trim();
+  const { studentId, hostelId, studentName, hostelName } = activeQuickReplyContext;
+
+  if (!msg || !studentId || !hostelId) return;
+
+  const btn = document.getElementById('qr-send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    await apiFetch('/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        hostel_id: hostelId,
+        receiver_id: studentId,
+        message: msg
+      })
+    });
+
+    closeQuickReply();
+    if(window.showToast) showToast('Reply sent successfully to ' + studentName, 'success');
+    
+    if (activeStudentId == studentId && activeHostelId == hostelId) {
+      openConversation(studentId, hostelId, studentName, hostelName);
+    }
+    loadAdminGroupedChats();
+  } catch (e) {
+    if(window.showToast) showToast('Failed to send quick reply: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Reply';
+  }
+}
+
