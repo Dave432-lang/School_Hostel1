@@ -4,7 +4,7 @@ exports.joinWaitlist = async (req, res) => {
   const { hostel_id } = req.body;
   const user_id = req.user.id;
   try {
-     const exists = await pool.query('SELECT * FROM waitlist WHERE user_id=? AND hostel_id=? AND status=\'active\'', [user_id, hostel_id]);
+     const exists = await pool.query('SELECT * FROM waitlist WHERE user_id=? AND hostel_id=?', [user_id, hostel_id]);
      if (exists.rows.length) return res.status(409).json({ error: 'You are already on the waitlist for this hostel' });
      
      await pool.query('INSERT INTO waitlist (user_id, hostel_id) VALUES (?,?)', [user_id, hostel_id]);
