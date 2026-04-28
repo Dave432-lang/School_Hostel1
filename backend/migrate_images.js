@@ -38,7 +38,7 @@ async function assignImages() {
       });
 
       await pool.query(
-        'UPDATE hostels SET image_urls = $1 WHERE id = $2',
+        'UPDATE hostels SET image_urls = ? WHERE id = ?',
         [imageUrlsJson, hostelId]
       );
       console.log(`Assigned [${assignedImages.join(', ')}] to Hostel ID ${hostelId}`);
@@ -53,10 +53,10 @@ async function assignImages() {
       }
       
       const firstHostelId = hostels[0].id;
-      const fData = await pool.query('SELECT image_urls FROM hostels WHERE id=$1', [firstHostelId]);
+      const fData = await pool.query('SELECT image_urls FROM hostels WHERE id=?', [firstHostelId]);
       const currentJson = JSON.parse(fData.rows[0].image_urls);
       currentJson.rooms = currentJson.rooms.concat(extraImages);
-      await pool.query('UPDATE hostels SET image_urls = $1 WHERE id = $2', [JSON.stringify(currentJson), firstHostelId]);
+      await pool.query('UPDATE hostels SET image_urls = ? WHERE id = ?', [JSON.stringify(currentJson), firstHostelId]);
       console.log(`Assigned leftovers [${extraImages.join(', ')}] to Hostel ID ${firstHostelId}`);
     }
 

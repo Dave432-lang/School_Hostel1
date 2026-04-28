@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS hostels (
   rating             NUMERIC(3, 1)  DEFAULT 0.0,
   amenities          JSONB          DEFAULT '[]',
   image_urls         JSONB          DEFAULT '{"rooms":[],"washrooms":[],"kitchens":[]}',
+  latitude           DECIMAL(10, 8),
+  longitude          DECIMAL(11, 8),
   price_per_semester NUMERIC(10, 2) NOT NULL DEFAULT 0,
   created_at         TIMESTAMP NOT NULL DEFAULT NOW()
 );
