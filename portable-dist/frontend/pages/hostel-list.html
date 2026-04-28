@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browse Hostels — School Hostel Booking</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* ---- Rooms table ---- */
+    .rooms-table { width:100%; border-collapse:collapse; }
+    .rooms-table th, .rooms-table td { padding:.7rem 1rem; text-align:left; border-bottom:1px solid var(--border); font-size:.875rem; }
+    .rooms-table thead th { background:#f8fafc; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:600; }
+
+    /* ---- Contact strip on hostel cards ---- */
+    .hostel-contact { border-top:1px solid var(--border); margin-top:.75rem; padding-top:.75rem; display:flex; flex-direction:column; gap:.3rem; }
+    .contact-row { display:flex; align-items:center; gap:.5rem; font-size:.8rem; color:var(--text-muted); }
+    .contact-row a { color:var(--primary); text-decoration:none; }
+    .contact-row a:hover { text-decoration:underline; }
+
+    /* ---- Payment modal ---- */
+    .pay-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); z-index:1100; display:none; align-items:center; justify-content:center; padding:1rem; }
+    .pay-modal-overlay.open { display:flex; }
+    .pay-modal {
+      background:#fff;
+      border-radius:20px;
+      width:100%;
+      max-width:460px;
+      max-height:90vh;        /* never taller than viewport */
+      display:flex;
+      flex-direction:column;  /* header / body / footer stack */
+      overflow:hidden;
+      box-shadow:0 24px 60px rgba(0,0,0,.25);
+    }
+    .pay-modal-header { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:1.25rem 1.5rem; flex-shrink:0; }
+    .pay-modal-header h3 { margin:0; font-size:1.05rem; }
+    .pay-modal-header p { margin:.3rem 0 0; font-size:.82rem; opacity:.85; }
+    .pay-modal-body {
+      padding:1.25rem 1.5rem;
+      overflow-y:auto;        /* scroll when content is tall */
+      flex:1 1 auto;          /* take all available space */
+    }
+    .pay-amount-box { background:#f8fafc; border:2px solid var(--border); border-radius:12px; padding:.9rem 1.1rem; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; }
+    .pay-amount-box .label { font-size:.78rem; color:var(--text-muted); font-weight:500; }
+    .pay-amount-box .amount { font-size:1.4rem; font-weight:700; color:var(--primary); }
+
+    /* Payment method selector */
+    .pay-methods { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
+    .pay-method-btn { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; border:2px solid var(--border); border-radius:12px; cursor:pointer; transition:all .2s; background:#fff; width:100%; text-align:left; font-size:.875rem; font-weight:500; }
+    .pay-method-btn:hover, .pay-method-btn.selected { border-color:var(--primary); background:#f0f4ff; }
+    .pay-method-icon { font-size:1.3rem; width:2rem; text-align:center; }
+    .pay-method-label { flex:1; }
+    .pay-method-sub { font-size:.73rem; color:var(--text-muted); font-weight:400; }
+    .pay-phone-wrap { display:none; margin-bottom:.75rem; }
+    .pay-phone-wrap.show { display:block; }
+
+    .pay-modal-footer { padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:.75rem; flex-shrink:0; background:#fff; }
+
+    /* ---- Improved Gallery Slider ---- */
+    .gallery-container {
+      padding: 1.5rem;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+    }
+    .gallery-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .gallery-tab-btn {
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .gallery-tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .gallery-viewer {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #gallery-main-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .gallery-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.8);
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    .gallery-nav:hover {
+      background: #fff;
+      transform: translateY(-50%) scale(1.1);
+    }
+    .gallery-nav.prev { left: 1rem; }
+    .gallery-nav.next { right: 1rem; }
+    .gallery-counter {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .no-images-msg {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* ---- Improved Reviews UI ---- */
+    .review-item {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s;
+    }
+    .review-item:hover {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .review-user {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+    .review-stars {
+      color: #fbbf24;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .review-text {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ---- Map View Styles ---- */
+    #map-view-container {
+      width: 100%;
+      height: 450px;
+      margin-bottom: 2rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      display: none; /* Hidden by default */
+      position: relative;
+      background: #eff6ff;
+    }
+    .map-popup-card {
+      width: 200px;
+      font-family: inherit;
+    }
+    .map-popup-img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .map-popup-title {
+      font-weight: 700;
+      margin: 8px 0 4px;
+      color: var(--text-main);
+    }
+    .map-popup-price {
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    .btn-map-view {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+    .btn-map-view:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    .btn-map-view.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* ---- Chat Widget Styles ---- */
+    .chat-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      height: 450px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+      transform: translateY(20px) scale(0.9);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .chat-widget.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .chat-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .chat-input-area {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.5rem;
+    }
+    .message {
+      max-width: 80%;
+      padding: 0.6rem 0.9rem;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+    .message.sent {
+      align-self: flex-end;
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+    .message.received {
+      align-self: flex-start;
+      background: #e2e8f0;
+      color: var(--text-main);
+      border-bottom-left-radius: 2px;
+    }
+    .chat-toggle {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      width: 56px;
+      height: 56px;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+      cursor: pointer;
+      z-index: 999;
+      font-size: 1.5rem;
+      transition: transform 0.2s;
+    }
+    .chat-toggle:hover { transform: scale(1.1); }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="brand-icon">🏠</div>School Hostel
+    </div>
+    <ul class="navbar-nav">
+      <li><a href="dashboard.html">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html" class="active">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html">🗺️ Map View</a></li>
+      <li><a href="booking-history.html">📋 My Bookings</a></li>
+      <li id="admin-nav-link" style="display:none"><a href="admin.html" style="color:var(--danger)">⚙️ Admin</a></li>
+    </ul>
+    <div class="navbar-right">
+      <div class="nav-bell-wrapper" id="nav-bell" onclick="toggleNotifications()">
+        <span class="bell-icon">🔔</span>
+        <span class="bell-badge" id="noti-badge" style="display:none">0</span>
+        <div class="notification-dropdown" id="noti-dropdown">
+          <div class="noti-header">Recent Notifications</div>
+          <div id="noti-list">
+            <div class="noti-empty">No notifications yet.</div>
+          </div>
+        </div>
+      </div>
+      <div class="user-badge">
+        <div class="avatar" id="user-avatar">S</div>
+        <span id="user-name-badge">Student</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- PAGE -->
+  <main class="page-wrapper">
+    <div class="page-header">
+      <h1>🏢 Available Hostels</h1>
+      <p>Browse and book a room for the upcoming semester.</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input class="form-control" type="search" id="search-input" placeholder="Search hostel or location…" />
+      </div>
+      <select class="form-control filter-select" id="type-filter">
+        <option value="">All Types</option>
+        <option value="standard">Standard</option>
+        <option value="premium">Premium</option>
+        <option value="executive">Executive</option>
+      </select>
+      <select class="form-control filter-select" id="gender-filter">
+        <option value="">All Genders</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="mixed">Mixed</option>
+      </select>
+      <span id="hostel-count" style="font-size:.875rem;color:var(--text-muted);white-space:nowrap"></span>
+    </div>
+
+    <!-- Hostel Grid -->
+    <div class="hostels-grid" id="hostels-grid">
+      <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
+    </div>
+  </main>
+
+  <!-- ======== ROOMS MODAL ======== -->
+  <div class="modal-overlay" id="rooms-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🛏️ Rooms — <span id="modal-hostel-name"></span></h3>
+        <button class="modal-close" onclick="closeRoomsModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:0">
+        <!-- Gallery Section -->
+        <div class="gallery-container" id="modal-gallery-section" style="display: none;">
+          <div class="gallery-tabs" id="gallery-tabs-row">
+            <button class="gallery-tab-btn active" onclick="switchGalleryTab('rooms')">Rooms</button>
+            <button class="gallery-tab-btn" onclick="switchGalleryTab('kitchens')">Kitchens</button>
+            <button class="gallery-tab-btn" onclick="switchGalleryTab('washrooms')">Washrooms</button>
+          </div>
+          <div class="gallery-viewer">
+            <button class="gallery-nav prev" onclick="prevGalleryImage()">❮</button>
+            <img id="gallery-main-img" src="" alt="Hostel Feature">
+            <button class="gallery-nav next" onclick="nextGalleryImage()">❯</button>
+            <div class="gallery-counter"><span id="gallery-current-idx">1</span> / <span id="gallery-total-count">0</span></div>
+          </div>
+        </div>
+
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); background: #fff;">
+          <h4 style="margin-bottom: 1rem;">Student Reviews</h4>
+          <div id="reviews-container"></div>
+        </div>
+
+        <table class="rooms-table">
+          <thead>
+            <tr><th>Room No.</th><th>Type</th><th>Capacity</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="rooms-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:2rem">
+              <div class="spinner" style="margin:0 auto"></div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer" id="modal-footer-normal">
+        <button class="btn btn-outline" onclick="closeRoomsModal()">Close</button>
+      </div>
+      <!-- Inline confirm bar -->
+      <div class="modal-footer" id="modal-confirm-bar"
+           style="display:none;background:#fffbeb;border-top:2px solid #f59e0b;flex-direction:column;align-items:stretch;gap:.5rem;">
+        <p style="font-size:.9rem;font-weight:600;margin:0">Proceed to pay for <span id="confirm-room-label"></span>?</p>
+        <div style="display:flex;gap:.75rem">
+          <button class="btn btn-success" style="flex:1" id="confirm-yes-btn">💳 Pay Now</button>
+          <button class="btn btn-outline" style="flex:1" onclick="cancelConfirm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== PAYMENT MODAL ======== -->
+  <div class="pay-modal-overlay" id="pay-modal">
+    <div class="pay-modal">
+      <div class="pay-modal-header">
+        <h3>💳 Complete Payment</h3>
+        <p>Choose your preferred payment method to confirm your room</p>
+      </div>
+      <div class="pay-modal-body">
+
+        <!-- Semester Selection -->
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label">Academic Semester</label>
+          <select class="form-control" id="pay-semester" required>
+            <option value="" disabled selected>Select the semester you are booking for...</option>
+            <option value="First Semester 2026/2027">First Semester 2026/2027</option>
+            <option value="Second Semester 2026/2027">Second Semester 2026/2027</option>
+          </select>
+        </div>
+
+        <!-- Amount display -->
+        <div class="pay-amount-box">
+          <div>
+            <div class="label">Amount Due</div>
+            <div class="amount" id="pay-amount-display">GH₵ 0.00</div>
+          </div>
+          <div style="font-size:2rem">🏠</div>
+        </div>
+
+        <!-- Payment methods -->
+        <div class="pay-methods">
+          <button class="pay-method-btn" onclick="selectMethod('mtn')" id="method-mtn">
+            <span class="pay-method-icon">🟡</span>
+            <div class="pay-method-label">
+              MTN Mobile Money
+              <div class="pay-method-sub">Send via MTN MoMo wallet</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('vodafone')" id="method-vodafone">
+            <span class="pay-method-icon">🔴</span>
+            <div class="pay-method-label">
+              Vodafone Cash
+              <div class="pay-method-sub">Pay with Vodafone Cash</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('airtel')" id="method-airtel">
+            <span class="pay-method-icon">🟠</span>
+            <div class="pay-method-label">
+              AirtelTigo Money
+              <div class="pay-method-sub">Pay with AirtelTigo wallet</div>
+            </div>
+          </button>
+          <button class="pay-method-btn" onclick="selectMethod('card')" id="method-card">
+            <span class="pay-method-icon">💳</span>
+            <div class="pay-method-label">
+              Debit / Credit Card
+              <div class="pay-method-sub">Visa, Mastercard, Verve</div>
+            </div>
+          </button>
+        </div>
+
+        <!-- Phone number (shown for mobile money only) -->
+        <div class="pay-phone-wrap" id="pay-phone-wrap">
+          <label class="form-label">Mobile Money Phone Number</label>
+          <input class="form-control" type="tel" id="pay-phone"
+                 placeholder="e.g. 0244000001" maxlength="10" />
+          <small style="color:var(--text-muted);font-size:.78rem">Enter the number linked to your mobile wallet</small>
+        </div>
+
+        <!-- Card details (shown for card only test mode) -->
+        <div class="pay-phone-wrap" id="pay-card-wrap" style="display:none; margin-bottom:.75rem;">
+          <div style="background:#fcfcfc; border:2px solid var(--border); border-radius:12px; padding:1.2rem;">
+            <label class="form-label" style="font-size:.85rem">Card Number</label>
+            <input class="form-control" type="text" placeholder="0000 0000 0000 0000" maxlength="19" style="margin-bottom:1rem;" />
+            <div style="display:flex;gap:1rem;">
+              <div style="flex:1">
+                <label class="form-label" style="font-size:.85rem">Expiry Date</label>
+                <input class="form-control" type="text" placeholder="MM/YY" maxlength="5" />
+              </div>
+              <div style="flex:1">
+                <label class="form-label" style="font-size:.85rem">CVV</label>
+                <input class="form-control" type="text" placeholder="***" maxlength="4" style="-webkit-text-security: disc;" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Occupancy Agreement -->
+        <div class="booking-terms">
+          <b>Hostel Occupancy Agreement</b><br/>
+          By booking this room, you agree to abide by all rules and regulations of the hostel. 
+          1. Rent is strictly non-refundable once paid.<br/>
+          2. No illegal substances are allowed on the premises.<br/>
+          3. Respect your roommates and maintain a quiet environment during study hours.<br/>
+          Failure to comply may result in eviction without refund.
+        </div>
+        <div class="terms-check">
+          <input type="checkbox" id="pay-agreement-check" />
+          <label for="pay-agreement-check" style="cursor:pointer; user-select:none;">I have read the hostel occupancy agreement and agree to the terms.</label>
+        </div>
+
+      </div>
+      <div class="pay-modal-footer">
+        <button class="btn btn-outline" style="flex:1" onclick="closePayModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" id="pay-now-btn" onclick="processPayment()">
+          🔒 Pay Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ======== RECEIPT MODAL ======== -->
+  <div class="pay-modal-overlay" id="receipt-modal">
+    <div class="pay-modal" style="max-width:400px; padding: 0;">
+      <div class="pay-modal-header" style="text-align:center; background: #fff; color: var(--text-main); border-bottom: 1px dashed #ccc;">
+        <div style="font-size: 2.5rem; margin-bottom: .5rem;">✅</div>
+        <h3 style="margin-bottom: .25rem; font-size: 1.25rem;">Payment Successful</h3>
+        <p style="color: var(--text-muted); font-size: .85rem;" id="receipt-email-msg">Confirmation sent to email</p>
+      </div>
+      <div class="pay-modal-body" style="background:#f8fafc; padding: 1.5rem;" id="receipt-content">
+        <div style="margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Reference</span>
+          <strong id="rcpt-ref" style="font-family:monospace; font-size:.9rem;">#--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Student</span>
+          <strong id="rcpt-student" style="font-size:.85rem;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Hostel</span>
+          <strong id="rcpt-hostel" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Room/Type</span>
+          <strong id="rcpt-room" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:.5rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Semester</span>
+          <strong id="rcpt-sem" style="font-size:.85rem; text-align:right;">--</strong>
+        </div>
+        <div style="margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted); font-size:.85rem;">Payment Method</span>
+          <strong id="rcpt-method" style="font-size:.85rem; text-transform:uppercase;">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:600;">Total Paid</span>
+          <strong id="rcpt-total" style="font-size:1.2rem; color:var(--primary);">GH₵ 0.00</strong>
+        </div>
+      </div>
+      <div class="pay-modal-footer" style="background:#fff;">
+        <button class="btn btn-outline" style="flex:1" onclick="document.getElementById('receipt-modal').classList.remove('open')">Close</button>
+        <button class="btn btn-primary" style="flex:1" onclick="printReceipt()">🖨️ Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT WIDGET -->
+  <div class="chat-toggle" id="chat-toggle" title="Chat with Us" onclick="toggleChatWidget()">💬</div>
+  <div class="chat-widget" id="chat-widget">
+    <div class="chat-header">
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <span id="chat-hostel-name">Support Chat</span>
+      </div>
+      <button onclick="toggleChatWidget()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.25rem">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-area">
+      <input type="text" class="form-control" id="chat-input" placeholder="Type a message..." style="font-size:.85rem" />
+      <button class="btn btn-primary" onclick="sendChatMessage()" style="padding:.5rem .75rem">➤</button>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

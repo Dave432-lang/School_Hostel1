@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Bookings — School Hostel Booking</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="brand-icon">🏠</div>
+      School Hostel
+    </div>
+    <ul class="navbar-nav">
+      <li><a href="dashboard.html">🏠 Dashboard</a></li>
+      <li><a href="hostel-list.html">🏢 Hostels</a></li>
+      <li><a href="hostel-map.html">🗺️ Map View</a></li>
+      <li><a href="booking-history.html" class="active">📜 My Bookings</a></li>
+    </ul>
+    <div class="navbar-right">
+      <div class="user-badge">
+        <div class="avatar" id="user-avatar">S</div>
+        <span id="user-name-badge">Student</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- PAGE -->
+  <main class="page-wrapper">
+
+    <div class="page-header">
+      <h1>📋 My Booking History</h1>
+      <p>Track and manage all your hostel bookings.</p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="stat-grid" style="margin-bottom:1.75rem">
+      <div class="stat-card">
+        <div class="stat-icon blue">📋</div>
+        <div>
+          <div class="stat-value" id="count-total">—</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div>
+          <div class="stat-value" id="count-confirmed">—</div>
+          <div class="stat-label">Confirmed</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">⏳</div>
+        <div>
+          <div class="stat-value" id="count-pending">—</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red">❌</div>
+        <div>
+          <div class="stat-value" id="count-cancelled">—</div>
+          <div class="stat-label">Cancelled</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="table-wrapper">
+      <div class="table-header">
+        <h3>All Bookings</h3>
+        <div style="display:flex;gap:.75rem;align-items:center">
+          <select class="form-control" id="status-filter" style="min-width:140px;padding:.45rem .9rem;font-size:.85rem">
+            <option value="">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <a href="hostel-list.html" class="btn btn-primary btn-sm">+ New Booking</a>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Booking ID</th>
+              <th>Hostel</th>
+              <th>Room No.</th>
+              <th>Room Type</th>
+              <th>Date Booked</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-tbody">
+            <tr>
+              <td colspan="7" style="text-align:center;padding:2rem">
+                <div class="spinner" style="margin:0 auto"></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toast-container"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/booking.js"></script>
+  <script src="../js/chat.js"></script>
+  <script src="../js/theme.js"></script>
+</body>
+
+</html>

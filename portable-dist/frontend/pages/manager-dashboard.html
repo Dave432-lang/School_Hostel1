@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager Dashboard — School Hostel</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    .manager-grid { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+    .manager-sidebar { background: #fff; border-right: 1px solid var(--border); padding: 2rem; }
+    .manager-main { padding: 2rem; background: #f8fafc; }
+    
+    .sidebar-menu { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 2rem; }
+    .menu-item { 
+      padding: 0.75rem 1rem; border-radius: 8px; color: var(--text-muted); 
+      text-decoration: none; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s;
+    }
+    .menu-item:hover { background: #f1f5f9; color: var(--primary); }
+    .menu-item.active { background: var(--primary); color: #fff; }
+    
+    .dashboard-card { background: #fff; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); }
+    .stat-val { font-size: 2rem; font-weight: 700; color: var(--primary); margin: 0.5rem 0; }
+
+    /* ---- Empty State Styling ---- */
+    .empty-state-mgr {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: var(--text-muted);
+      padding: 2rem;
+    }
+    .empty-state-mgr svg { width: 120px; height: 120px; margin-bottom: 1.5rem; opacity: 0.2; color: var(--primary); }
+    .empty-state-mgr h4 { color: var(--text-main); margin-bottom: 0.5rem; }
+
+    @media (max-width: 768px) {
+      .manager-grid { grid-template-columns: 1fr; }
+      .manager-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+      }
+      .sidebar-menu {
+        flex-direction: row;
+        overflow-x: auto;
+        white-space: nowrap;
+        margin-top: 1rem;
+        padding-bottom: 0.5rem;
+      }
+      .menu-item { padding: 0.5rem 0.75rem; }
+      .manager-main { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="manager-grid">
+    <!-- Sidebar -->
+    <aside class="manager-sidebar">
+      <div class="nav-logo">
+        <span class="logo-icon">🏢</span>
+        <span class="logo-text">Manager<span>Portal</span></span>
+      </div>
+      <nav class="sidebar-menu">
+        <a href="#" class="menu-item active" onclick="showTab('overview', this)">📊 Overview</a>
+        <a href="#" class="menu-item" onclick="showTab('messages', this)">💬 Messages</a>
+        <a href="hostel-list.html" class="menu-item">🏢 My Hostels</a>
+        <a href="hostel-map.html" class="menu-item">🗺️ Map View</a>
+        <button class="btn btn-outline btn-full" style="margin-top:2rem" onclick="logout()">Logout</button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="manager-main">
+      <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem">
+        <div>
+          <h1 style="font-size:1.75rem">Hostel Manager Dashboard</h1>
+          <p style="color:var(--text-muted)">Welcome back, <span id="m-name">Manager</span></p>
+        </div>
+        <div class="user-badge">
+            <div class="avatar">M</div>
+            <span id="m-role">Hostel Manager</span>
+        </div>
+      </header>
+
+      <!-- Tab: Overview -->
+      <div id="tab-overview">
+        <!-- Stats & Analytics -->
+        <div style="display:grid; grid-template-columns: 1fr 300px; gap:2rem; margin-bottom:2rem">
+          <!-- Left: Big Stats -->
+          <div class="stat-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:0">
+            <div class="dashboard-card">
+              <div style="font-size:0.875rem; color:var(--text-muted)">My Bookings</div>
+              <div class="stat-val" id="m-stat-bookings">0</div>
+            </div>
+            <div class="dashboard-card">
+              <div style="font-size:0.875rem; color:var(--text-muted)">Projected Revenue</div>
+              <div class="stat-val" id="m-stat-revenue">₵0.00</div>
+            </div>
+            <div class="dashboard-card">
+              <div style="font-size:0.875rem; color:var(--text-muted)">Active Hostels</div>
+              <div class="stat-val" id="m-stat-hostels">0</div>
+            </div>
+          </div>
+          <!-- Right: Mini Chart Card -->
+          <div class="dashboard-card" style="display:flex; flex-direction:column; align-items:center; justify-content:center">
+             <div style="font-size:0.875rem; color:var(--text-muted); margin-bottom: 1rem">Occupancy Status</div>
+             <div style="height: 150px; width: 150px">
+                <canvas id="occupancyChart"></canvas>
+             </div>
+          </div>
+        </div>
+
+        <!-- Recent Bookings Table -->
+        <div class="dashboard-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+            <h3 style="margin-bottom:0">Recent Bookings for Your Hostels</h3>
+            <button class="btn btn-outline" onclick="exportBookingsCSV()">📥 Export as CSV</button>
+          </div>
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Hostel</th>
+                  <th>Room</th>
+                  <th>Status</th>
+                  <th>Paid</th>
+                </tr>
+              </thead>
+              <tbody id="m-bookings-tbody">
+                <tr><td colspan="5" style="text-align:center">Loading bookings...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Messages -->
+      <div id="tab-messages" style="display:none">
+        <div style="display:grid; grid-template-columns:300px 1fr; gap:1.5rem; height: calc(100vh - 200px)">
+          <div class="dashboard-card" style="display:flex; flex-direction:column; padding:0">
+            <div class="noti-header">Conversations</div>
+            <div id="m-chat-list" style="flex:1; overflow-y:auto"></div>
+          </div>
+          <div class="dashboard-card" style="display:flex; flex-direction:column; padding:0; overflow:hidden">
+            <div class="chat-header" id="m-chat-header" style="height: 60px">Message Center</div>
+            <div class="chat-messages" id="m-chat-messages" style="flex:1; background:#f8fafc">
+              <div class="empty-state-mgr" id="m-empty-view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <h4>Select a Conversation</h4>
+                <p>Choose a student from the left to start replying to their inquiries.</p>
+              </div>
+            </div>
+            <div class="chat-input-area" id="m-chat-footer" style="display:none">
+              <input type="text" class="form-control" id="m-chat-input" placeholder="Type a reply..." />
+              <button class="btn btn-primary" onclick="managerSendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <!-- Quick Reply Modal -->
+  <div id="quick-reply-overlay" class="modal-overlay">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="qr-title">Quick Reply</h3>
+        <button class="modal-close" onclick="closeQuickReply()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div id="qr-context" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg); padding: 0.75rem; border-radius: 8px;">
+          Replying to <strong><span id="qr-student">Student</span></strong> regarding <span id="qr-hostel">Hostel</span>
+        </div>
+        <div class="form-group">
+          <textarea id="qr-input" class="form-control" rows="4" placeholder="Type your message here..." style="resize: none;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeQuickReply()">Cancel</button>
+        <button class="btn btn-primary" id="qr-send-btn" onclick="sendQuickReply()">Send Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="../js/manager.js"></script>
+  <script src="../js/theme.js"></script>
+</body>
+</html>

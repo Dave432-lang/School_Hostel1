@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | School Hostel</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* Admin Specific Styles */
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+      padding-top: var(--nav-h);
+    }
+
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1rem;
+      position: fixed;
+      width: 260px;
+      height: calc(100vh - var(--nav-h));
+      top: var(--nav-h);
+      overflow-y: auto;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-weight: 500;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    .sidebar-link:hover,
+    .sidebar-link.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .admin-content {
+      padding: 2rem;
+      margin-left: 260px;
+    }
+
+    .admin-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .data-table-container {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Small Badge for status */
+    .status-pill {
+      padding: 0.25rem 0.6rem;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    .status-pending {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .status-confirmed,
+    .status-paid {
+      background: #ecfdf5;
+      color: #047857;
+    }
+
+    .status-cancelled,
+    .status-unpaid {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    /* Modal for Add/Edit */
+    .admin-modal-body {
+      max-height: 70vh;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    .admin-modal-body .form-group {
+      margin-bottom: 1rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      text-align: left;
+      padding: 1rem;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    tr:hover {
+      background: #f8fafc;
+    }
+
+    @media (max-width: 768px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+        padding-top: calc(var(--nav-h) + 60px);
+      }
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        padding: 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 0.5rem;
+      }
+      .admin-content {
+        margin-left: 0;
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="brand-icon">🏠</div>Admin Panel
+    </div>
+    <div class="navbar-right">
+      <div class="nav-bell-wrapper" id="nav-bell" onclick="toggleNotifications()">
+        <span class="bell-icon">🔔</span>
+        <span class="bell-badge" id="noti-badge" style="display:none">0</span>
+        <div class="notification-dropdown" id="noti-dropdown">
+          <div class="noti-header">Recent Notifications</div>
+          <div id="noti-list">
+            <div class="noti-empty">No notifications yet.</div>
+          </div>
+        </div>
+      </div>
+      <a href="hostel-map.html" class="nav-link">🗺️ Map View</a>
+      <a href="admin.html" class="nav-link active">Admin Panel</a>
+      <a href="hostel-list.html" class="nav-link">View Site</a>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-nav">
+        <div class="sidebar-link active" data-tab="dashboard">📊 Dashboard Overview</div>
+        <div class="sidebar-link" data-tab="hostels">🏠 Manage Hostels</div>
+        <div class="sidebar-link" data-tab="rooms">🔑 Manage Rooms</div>
+        <div class="sidebar-link" data-tab="bookings">📋 All Bookings</div>
+        <div class="sidebar-link" data-tab="messages">💬 All Messages</div>
+        <div class="sidebar-link" data-tab="users">👥 Students List</div>
+        <hr style="margin: 1rem 0; border: 0; border-top: 1px solid var(--border);">
+        <a href="hostel-list.html" class="sidebar-link">🌐 View Website</a>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="admin-content">
+
+      <!-- DASHBOARD TAB -->
+      <section id="tab-dashboard" class="tab-panel active">
+        <h2 style="margin-bottom: 1.5rem">Dashboard Overview</h2>
+        <div class="stats-grid" id="admin-stats-grid">
+          <!-- Stats loaded via JS -->
+          <div class="stat-card">
+            <div class="stat-icon blue">🏠</div>
+            <div>
+              <div class="stat-value" id="stat-hostels">0</div>
+              <div class="stat-label">Total Hostels</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">👥</div>
+            <div>
+              <div class="stat-value" id="stat-students">0</div>
+              <div class="stat-label">Total Students</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">📋</div>
+            <div>
+              <div class="stat-value" id="stat-bookings">0</div>
+              <div class="stat-label">Total Bookings</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">💰</div>
+            <div>
+              <div class="stat-value" id="stat-revenue">₵0</div>
+              <div class="stat-label">Total Revenue</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NEW: Analytics Chart Section -->
+        <div class="admin-card" style="margin-bottom:2rem">
+          <h3 style="margin-bottom:1.5rem">💸 Revenue Trend (Last 7 Days)</h3>
+          <div style="height: 300px; width: 100%">
+            <canvas id="revenueChart"></canvas>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3 style="margin-bottom: 1rem">Recent Activity</h3>
+          <div class="data-table-container">
+            <table id="recent-bookings-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Hostel</th>
+                  <th>Room</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recent-bookings-tbody">
+                <tr>
+                  <td colspan="5" style="text-align:center; padding: 2rem">Loading recent data...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOSTELS TAB -->
+      <section id="tab-hostels" class="tab-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+          <h2>Hostel Management</h2>
+          <button class="btn btn-primary" id="btn-add-hostel">+ Add Hostel</button>
+        </div>
+        <div class="data-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Price (GH₵)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="hostels-list-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ROOMS TAB -->
+      <section id="tab-rooms" class="tab-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+          <h2>Room Management</h2>
+          <div style="display:flex; gap:1rem; align-items:center;">
+            <select id="room-hostel-filter" class="form-control" style="width: 250px">
+              <option value="">Select Hostel to Manage...</option>
+            </select>
+            <button class="btn btn-primary" id="btn-add-room" disabled>+ Add Room</button>
+          </div>
+        </div>
+        <div class="data-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Room No.</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rooms-list-tbody">
+              <tr>
+                <td colspan="4" style="text-align:center; padding:2rem">Select a hostel above to see rooms.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- BOOKINGS TAB -->
+      <section id="tab-bookings" class="tab-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+          <h2>All Student Bookings</h2>
+          <button class="btn btn-outline" onclick="exportBookingsCSV()">📥 Export as CSV</button>
+        </div>
+        <div class="data-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Hostel & Room</th>
+                <th>Amount Paid</th>
+                <th>Pay Status</th>
+                <th>Booking Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-list-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- USERS TAB -->
+      <section id="tab-users" class="tab-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem">
+          <h2>Students List</h2>
+          <button class="btn btn-outline" onclick="exportStudentsCSV()">📥 Export as CSV</button>
+        </div>
+        <div class="data-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Joined Date</th>
+              </tr>
+            </thead>
+            <tbody id="users-list-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MESSAGES TAB -->
+      <section id="tab-messages" class="tab-panel">
+        <h2 style="margin-bottom: 1.5rem">Message Center</h2>
+        <div style="display:grid; grid-template-columns:300px 1fr; gap:1.5rem; height: calc(100vh - 200px)">
+          <div style="grid-column: 1; display:flex; flex-direction:column; padding:0; margin-bottom:0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+            <div style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; background: #f8fafc;">Conversations</div>
+            <div id="m-chat-list" style="flex:1; overflow-y:auto"></div>
+          </div>
+          <div style="grid-column: 2; display:flex; flex-direction:column; padding:0; overflow:hidden; margin-bottom:0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);">
+            <div class="chat-header" id="m-chat-header" style="height: 60px; background: var(--primary); color: #fff; padding: 1rem; display: flex; align-items: center;">Select a Conversation</div>
+            <div class="chat-messages" id="m-chat-messages" style="flex:1; background:#f8fafc; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 120px; height: 120px; margin-bottom: 1.5rem; opacity: 0.2; color: var(--primary);">
+                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <h4>Select a Conversation</h4>
+                <p>Choose a student from the left to read or reply to their messages.</p>
+              </div>
+            </div>
+            <div class="chat-input-area" id="m-chat-footer" style="display:none; padding: 0.75rem; border-top: 1px solid var(--border); gap: 0.5rem; background: #fff;">
+              <input type="text" class="form-control" id="m-chat-input" placeholder="Type a reply..." style="flex:1" />
+              <button class="btn btn-primary" onclick="adminSendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL: ADD/EDIT HOSTEL -->
+  <div class="modal-overlay" id="hostel-modal">
+    <div class="modal" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 id="hostel-modal-title">Add New Hostel</h3>
+        <button class="modal-close" data-close-modal>&times;</button>
+      </div>
+      <form id="hostel-form">
+        <input type="hidden" id="h-id">
+        <div class="admin-modal-body">
+          <div class="form-group">
+            <label class="form-label">Hostel Name</label>
+            <input type="text" id="h-name" class="form-control" placeholder="e.g. Evandy Hostel" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input type="text" id="h-location" class="form-control" placeholder="e.g. On-Campus">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Price per Semester (GH₵)</label>
+              <input type="number" id="h-price-main" class="form-control" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Type</label>
+              <select id="h-type" class="form-control">
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
+                <option value="luxury">Luxury</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gender</label>
+              <select id="h-gender" class="form-control">
+                <option value="mixed">Mixed</option>
+                <option value="male">Male Only</option>
+                <option value="female">Female Only</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Assigned Manager</label>
+              <select id="h-manager" class="form-control">
+                <option value="">No Manager Assigned (Default to Admin)</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Latitude</label>
+                <input type="text" id="h-lat" class="form-control" placeholder="e.g. 5.6565">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Longitude</label>
+                <input type="text" id="h-lng" class="form-control" placeholder="e.g. -0.1985">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Main Image URL</label>
+              <input type="text" id="h-img-main" class="form-control" placeholder="https://unsplash.com/...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="h-desc" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" data-close-modal>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Hostel</button>
+          </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD ROOM -->
+  <div class="modal-overlay" id="room-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Add Room</h3>
+        <button class="modal-close" data-close-modal>&times;</button>
+      </div>
+      <form id="room-form">
+        <div class="modal-body" style="padding: 1.5rem">
+          <div class="form-group">
+            <label class="form-label">Room Number</label>
+            <input type="text" id="r-number" class="form-control" required placeholder="e.g. 101B">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Room Type</label>
+            <select id="r-type" class="form-control">
+              <option value="single">Single Room</option>
+              <option value="two-in-one">2-in-1</option>
+              <option value="three-in-one">3-in-1</option>
+              <option value="four-in-one">4-in-1</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close-modal>Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Room</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div id="toast-container"></div>
+
+  <!-- Quick Reply Modal -->
+  <div id="quick-reply-overlay" class="modal-overlay">
+    <div class="modal" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="qr-title">Quick Reply</h3>
+        <button class="modal-close" onclick="closeQuickReply()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div id="qr-context" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; background: var(--bg); padding: 0.75rem; border-radius: 8px;">
+          Replying to <strong><span id="qr-student">Student</span></strong> regarding <span id="qr-hostel">Hostel</span>
+        </div>
+        <div class="form-group">
+          <textarea id="qr-input" class="form-control" rows="4" placeholder="Type your message here..." style="resize: none;"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeQuickReply()">Cancel</button>
+        <button class="btn btn-primary" id="qr-send-btn" onclick="sendQuickReply()">Send Reply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/admin.js?v=2"></script>
+  <script src="../js/theme.js"></script>
+</body>
+
+</html>

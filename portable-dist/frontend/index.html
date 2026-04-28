@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — School Hostel Booking System</title>
+  <meta name="description" content="Sign in to the School Hostel Booking System to search and book hostel rooms." />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .tab-bar {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: .6rem;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: transparent;
+      font-weight: 600;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-muted);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, .3);
+    }
+
+    .map-hostel-card.active {
+      border-color: var(--primary);
+      background: #eff6ff;
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap .form-control {
+      padding-right: 2.75rem;
+    }
+
+    .toggle-pw {
+      position: absolute;
+      right: .75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+
+<body class="login-body">
+  <div class="login-container">
+    <div class="login-brand">
+      <div class="logo-box">🏠</div>
+      <h1>School Hostel</h1>
+      <p>Booking & Management System</p>
+    </div>
+    <div class="login-card">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="login" id="tab-login">Sign In</button>
+        <button class="tab-btn" data-tab="register" id="tab-register">Register</button>
+      </div>
+
+      <!-- =====================  LOGIN PANEL ===================== -->
+      <div data-panel="login">
+        <p class="subtitle">Welcome back! Sign in to continue.</p>
+        <div class="alert alert-error" id="login-alert"></div>
+
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="login-email">Email Address</label>
+            <div class="input-icon-wrap">
+              <span class="icon">✉️</span>
+              <input class="form-control" type="email" id="login-email" placeholder="student@school.edu.gh" required
+                autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">
+              Password
+              <a href="pages/forgot-password.html" class="forgot-link" style="float:right;font-weight:400">Forgot password?</a>
+            </label>
+            <div class="password-wrap">
+              <input class="form-control" type="password" id="login-password" placeholder="Enter your password" required
+                autocomplete="current-password" />
+              <button type="button" class="toggle-pw" data-toggle-password="login-password"
+                title="Toggle password">👁️</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full" id="login-btn" data-default-text="Sign In">
+            Sign In
+          </button>
+          <button type="button" class="btn btn-outline btn-full"
+            style="margin-top: 1rem; border: 1px solid var(--primary); color: var(--primary); background: transparent;"
+            onclick="window.location.href='pages/hostel-list.html'">
+            🌍 Explore Hostels
+          </button>
+        </form>
+
+        <div class="divider"><span>or</span></div>
+        <p class="register-link">Don't have an account? <a href="#" onclick="switchTab('register')">Register here</a>
+        </p>
+      </div>
+
+      <!-- =====================  REGISTER PANEL ===================== -->
+      <div data-panel="register" class="hidden">
+        <p class="subtitle">Create your student account.</p>
+        <div class="alert alert-error" id="register-alert"></div>
+
+        <form id="register-form" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="reg-first-name">First Name</label>
+              <div class="input-icon-wrap">
+                <span class="icon">👤</span>
+                <input class="form-control" type="text" id="reg-first-name" placeholder="John" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reg-last-name">Last Name</label>
+              <div class="input-icon-wrap">
+                <span class="icon">👤</span>
+                <input class="form-control" type="text" id="reg-last-name" placeholder="Doe" required />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="reg-student-id">Student ID</label>
+              <div class="input-icon-wrap">
+                <span class="icon">🆔</span>
+                <input class="form-control" type="text" id="reg-student-id" placeholder="10XXXXXX" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reg-level">Year of Study</label>
+              <select class="form-control" id="reg-level" required style="padding-left: 0.75rem;">
+                <option value="" disabled selected>Select Level</option>
+                <option value="100">Level 100</option>
+                <option value="200">Level 200</option>
+                <option value="300">Level 300</option>
+                <option value="400">Level 400</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-programme">Programme of Study</label>
+            <div class="input-icon-wrap">
+              <span class="icon">🎓</span>
+              <input class="form-control" type="text" id="reg-programme" placeholder="BSc Computer Science" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reg-email">Email Address</label>
+            <div class="input-icon-wrap">
+              <span class="icon">✉️</span>
+              <input class="form-control" type="email" id="reg-email" placeholder="student@school.edu.gh" required
+                autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="reg-password">Password</label>
+              <div class="password-wrap">
+                <input class="form-control" type="password" id="reg-password" placeholder="Min. 6 characters" required
+                  autocomplete="new-password" />
+                <button type="button" class="toggle-pw" data-toggle-password="reg-password"
+                  title="Toggle password">👁️</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reg-confirm">Confirm Password</label>
+              <div class="password-wrap">
+                <input class="form-control" type="password" id="reg-confirm" placeholder="Repeat password" required
+                  autocomplete="new-password" />
+                <button type="button" class="toggle-pw" data-toggle-password="reg-confirm"
+                  title="Toggle password">👁️</button>
+              </div>
+            </div>
+          </div>
+
+
+          <button type="submit" class="btn btn-primary btn-full" data-default-text="Create Account">
+            Create Account
+          </button>
+        </form>
+
+        <div class="divider"><span>or</span></div>
+        <p class="register-link">Already have an account? <a href="#" onclick="switchTab('login')">Sign in here</a></p>
+      </div>
+    </div><!-- /login-card -->
+
+  </div><!-- /login-container -->
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        const stats = await apiFetch('/public/stats');
+        const studentEl = document.querySelector('.stat-card:nth-child(1) h3');
+        const hostelEl = document.querySelector('.stat-card:nth-child(2) h3');
+        const roomEl = document.querySelector('.stat-card:nth-child(3) h3');
+        
+        if (studentEl) studentEl.textContent = (stats.totalStudents + 500) + '+'; // Add a base offset for "wow" factor
+        if (hostelEl) hostelEl.textContent = stats.totalHostels + '+';
+        if (roomEl) roomEl.textContent = stats.totalRooms + '+';
+      } catch (err) { console.warn('Public stats failed to load.'); }
+    });
+  </script>
+  <script src="js/theme.js"></script>
+</body>
+
+</html>

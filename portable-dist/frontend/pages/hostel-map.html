@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🗺️ Explore Hostels on Map — School Hostel Booking</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .map-wrapper { flex: 1; display: flex; overflow: hidden; position: relative; }
+    #map-container { flex: 1; z-index: 1; }
+    
+    .map-sidebar {
+      width: 380px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+    }
+    .sidebar-header { padding: 1.5rem; border-bottom: 1px solid var(--border); }
+    .sidebar-content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+    
+    .map-hostel-card {
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .map-hostel-card:hover { border-color: var(--primary); background: #f8fafc; }
+    .map-hostel-card.active { border-color: var(--primary); background: #eff6ff; box-shadow: 0 0 0 2px var(--primary); }
+    
+    .map-hostel-img {
+      width: 100%;
+      height: 120px;
+      border-radius: 4px;
+      object-fit: cover;
+      margin-bottom: 0.75rem;
+    }
+    
+    .map-popup-card { width: 220px; font-family: 'Inter', sans-serif; }
+    .map-popup-img { width: 100%; height: 130px; object-fit: cover; border-radius: 6px; margin-bottom: 0.5rem; }
+    .map-popup-title { font-weight: 700; font-size: 1rem; color: var(--text-main); margin-bottom: 0.25rem; }
+    .map-popup-price { color: var(--primary); font-weight: 600; margin-bottom: 0.75rem; }
+
+    @media (max-width: 768px) {
+      .map-sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-logo">
+        <span class="logo-icon">🏢</span>
+        <span class="logo-text">School<span>Hostel</span></span>
+      </a>
+      <div class="nav-links" id="nav-links">
+        <a href="hostel-list.html" class="nav-link">Browse</a>
+        <a href="#" class="nav-link active">Map View</a>
+        <a href="dashboard.html" class="nav-link" id="nav-dash">Dashboard</a>
+        <button class="btn btn-primary btn-sm" onclick="logout()" id="logout-btn">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="map-wrapper">
+    <!-- Sidebar -->
+    <aside class="map-sidebar">
+      <div class="sidebar-header">
+        <h2 style="font-size:1.25rem; margin-bottom:0.5rem">Nearby Hostels</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted)">Click a hostel to see it on the map.</p>
+      </div>
+      <div class="sidebar-content" id="hostel-results">
+        <!-- JS rendered cards -->
+        <div class="spinner" style="margin: 2rem auto"></div>
+      </div>
+    </aside>
+
+    <!-- Map -->
+    <div id="map-container"></div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    var map = null;
+    var markers = {};
+    var allHostels = [];
+
+    document.addEventListener('DOMContentLoaded', async function() {
+      initMap();
+      await loadHostels();
+    });
+
+    function initMap() {
+      // Default: Center of Legon / University area
+      map = L.map('map-container').setView([5.6508, -0.1963], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+    }
+
+    async function loadHostels() {
+      try {
+        allHostels = await apiFetch('/hostels');
+        renderHostels();
+      } catch(err) {
+        showToast('Failed to load map data.', 'error');
+      }
+    }
+
+    function renderHostels() {
+      const container = document.getElementById('hostel-results');
+      container.innerHTML = '';
+      
+      const mapHostels = allHostels.filter(h => h.latitude && h.longitude);
+
+      if(!mapHostels.length) {
+        container.innerHTML = '<p style="text-align:center; padding:2rem; color:var(--text-muted)">No hostels with location data found.</p>';
+        return;
+      }
+
+      mapHostels.forEach(h => {
+        // Sidebar Card
+        const images = typeof h.image_urls === 'string' ? JSON.parse(h.image_urls) : h.image_urls;
+        const mainImg = images?.rooms?.[0] || 'https://via.placeholder.com/400x250?text=No+Image';
+
+        const card = document.createElement('div');
+        card.className = 'map-hostel-card';
+        card.innerHTML = `
+          <img src="${mainImg}" class="map-hostel-img" alt="${h.name}">
+          <div style="font-weight:600">${h.name}</div>
+          <div style="font-size:0.8rem; color:var(--text-muted)">${h.location || 'N/A'}</div>
+          <div style="font-weight:700; color:var(--primary); margin-top:0.25rem">₵${Number(h.price_per_semester).toLocaleString()}</div>
+        `;
+        card.onclick = () => focusHostel(h.id);
+        container.appendChild(card);
+
+        // Map Marker
+        const marker = L.marker([h.latitude, h.longitude]).addTo(map);
+        
+        const popupContent = `
+          <div class="map-popup-card">
+            <img src="${mainImg}" class="map-popup-img" alt="${h.name}">
+            <div class="map-popup-title">${h.name}</div>
+            <div class="map-popup-price">₵${Number(h.price_per_semester).toLocaleString()}/sem</div>
+            <a href="hostel-list.html?id=${h.id}" class="btn btn-primary btn-sm btn-full" style="text-decoration:none; text-align:center; display:block">View Details</a>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+        markers[h.id] = marker;
+      });
+
+      // Fit map to markers
+      const markerList = Object.values(markers);
+      if(markerList.length) {
+        const group = new L.featureGroup(markerList);
+        map.fitBounds(group.getBounds().pad(0.1));
+      }
+    }
+
+    function focusHostel(id) {
+      const h = allHostels.find(x => x.id === id);
+      if(!h || !markers[id]) return;
+      
+      map.setView([h.latitude, h.longitude], 16);
+      markers[id].openPopup();
+      
+      // Highlight sidebar
+      document.querySelectorAll('.map-hostel-card').forEach(c => c.classList.remove('active'));
+      // Note: we'd need a way to link card to ID, but focusing map is primary.
+    }
+  </script>
+  <script src="../js/theme.js"></script>
+</body>
+</html>
